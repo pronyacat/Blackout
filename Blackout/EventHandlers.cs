@@ -11,7 +11,7 @@ using UnityEngine.Networking;
 
 namespace Blackout
 {
-    public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerCheckRoundEnd, IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla
+    public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerCheckRoundEnd, IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerDisconnect
     {
         private bool escapeReady;
         private string[] activeGenerators;
@@ -78,7 +78,7 @@ namespace Blackout
 
                     player.Teleport(ev.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
                 }
-                Plugin.initialPlayers = possibleLarrys.Count;
+                Plugin.players = possibleLarrys.Count;
 
                 if (Plugin.giveFlashlights)
                 {
@@ -228,22 +228,26 @@ namespace Blackout
 
         public void OnCheckRoundEnd(CheckRoundEndEvent ev)
         {
-            if (Plugin.active && !Plugin.roundLock && Plugin.escaped >= Plugin.initialPlayers)
+            if (Plugin.active && !Plugin.roundLock && Plugin.escaped >= Plugin.players)
             {
-                foreach (PlayerInteract player in Object.FindObjectsOfType<PlayerInteract>())
-                {
-                    player.CallRpcContain106(PlayerManager.localPlayer);
-                }
-
-                ev.Status = ROUND_END_STATUS.OTHER_VICTORY;
+                ev.Status = ROUND_END_STATUS.MTF_VICTORY;
             }
         }
+
+        /*
+         * updated it so now the command causes the next round to be a blackout round, and also added your ideas. very little testing for the command and i dont have enough people for it tho.
+
+25% (by default) players are 106 and instakill
+
+the rest are scientists and spawn in 049 chambers with card, radio, tablet, and if setting is on, flashlights. they have to escape 
+         */
 
         public void OnPlayerHurt(PlayerHurtEvent ev)
         {
             if (Plugin.active && ev.DamageType == DamageType.SCP_106)
             {
                 ev.Damage = 99999f;
+                Plugin.players--;
             }
         }
 
@@ -274,6 +278,16 @@ namespace Blackout
             {
                 ev.Triggerable = false;
             }
+        }
+
+        public void OnDisconnect(DisconnectEvent ev)
+        {
+            UpdatePlayers();
+        }
+
+        private void UpdatePlayers()
+        {
+            Plugin.players = PluginManager.Manager.Server.GetPlayers().Count(x => x.TeamRole.Role == Role.SCIENTIST);
         }
     }
 }
