@@ -4,7 +4,7 @@ using Smod2.Commands;
 
 namespace Blackout
 {
-    public class CommandHandler : ICommandHandler
+    public class ActivatorCommandHandler : ICommandHandler
     {
         public string[] OnCall(ICommandSender sender, string[] args)
         {

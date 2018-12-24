@@ -7,22 +7,37 @@ using Smod2.EventHandlers;
 using Smod2.Events;
 using Smod2.EventSystem.Events;
 using UnityEngine;
+using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 namespace Blackout
 {
-    public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerCheckRoundEnd, IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerDisconnect
+    public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerCheckRoundEnd, IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerDisconnect, IEventHandlerPlayerDie, IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown
     {
+        private static int curRound;
+
         private bool escapeReady;
         private Broadcast broadcast;
+        private static MTFRespawn cassie;
+
+        public EventHandlers()
+        {
+            curRound = int.MinValue;
+        }
 
         public void OnRoundStart(RoundStartEvent ev)
         {
-            Plugin.validRanks = Plugin.instance.GetConfigList("blackout_ranks");
-            Plugin.giveFlashlights = Plugin.instance.GetConfigBool("blackout_flashlights");
-            Plugin.percentLarrys = Plugin.instance.GetConfigFloat("blackout_larry_percent");
+            Plugin.validRanks = Plugin.instance.GetConfigList("bo_ranks");
+            Plugin.giveFlashlights = Plugin.instance.GetConfigBool("bo_flashlights");
+            Plugin.percentLarrys = Plugin.instance.GetConfigFloat("bo_slendy_percent");
+            Plugin.maxTime = Plugin.instance.GetConfigInt("bo_max_time");
+            Plugin.respawnTime = Plugin.instance.GetConfigInt("bo_respawn_time");
 
             if (Plugin.activeNextRound)
             {
+                Plugin.active = true;
+                Plugin.activeNextRound = false;
+
                 foreach (Elevator elevator in ev.Server.Map.GetElevators())
                 {
                     switch (elevator.ElevatorType)
@@ -33,7 +48,6 @@ namespace Blackout
                             {
                                 elevator.Use();
                             }
-                            elevator.Locked = true;
                             break;
                     }
                 }
@@ -48,21 +62,21 @@ namespace Blackout
                 }
 
                 List<Player> players = ev.Server.GetPlayers();
-                List<Player> possibleLarrys = players.ToList();
+                List<Player> possibleSlendies = players.ToList();
                 int larryCount = Mathf.FloorToInt(players.Count * Plugin.percentLarrys);
                 if (larryCount == 0)
                 {
                     larryCount = 1;
                 }
 
-                Player[] larrys = new Player[larryCount];
+                Player[] slendies = new Player[larryCount];
                 for (int i = 0; i < larryCount; i++)
                 {
-                    larrys[i] = possibleLarrys[Random.Range(0, possibleLarrys.Count)];
-                    possibleLarrys.Remove(larrys[i]);
+                    slendies[i] = possibleSlendies[Random.Range(0, possibleSlendies.Count)];
+                    possibleSlendies.Remove(slendies[i]);
                 }
 
-                foreach (Player player in possibleLarrys)
+                foreach (Player player in possibleSlendies)
                 {
                     player.ChangeRole(Role.SCIENTIST, false, false);
                     foreach (Smod2.API.Item item in player.GetInventory())
@@ -76,18 +90,18 @@ namespace Blackout
 
                     player.Teleport(ev.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
                 }
-                Plugin.players = possibleLarrys.Count;
+                Plugin.players = possibleSlendies.Count;
 
                 if (Plugin.giveFlashlights)
                 {
-                    foreach (Player player in possibleLarrys)
+                    foreach (Player player in possibleSlendies)
                     {
                         player.GiveItem(ItemType.FLASHLIGHT);
                     }
                 }
 
                 List<Role> availableSpawns = Plugin.larrySpawnPoints.ToList();
-                foreach (Player player in larrys)
+                foreach (Player player in slendies)
                 {
                     Role spawnRole = availableSpawns[Random.Range(0, availableSpawns.Count)];
                     availableSpawns.Remove(spawnRole);
@@ -96,15 +110,13 @@ namespace Blackout
                         availableSpawns = Plugin.larrySpawnPoints.ToList();
                     }
 
-                    player.ChangeRole(Role.SCP_106);
+                    player.ChangeRole(Role.SCP_049);
                     player.Teleport(ev.Server.Map.GetRandomSpawnPoint(spawnRole));
                 }
 
-                PlayerManager.localPlayer.GetComponent<MTFRespawn>().CallRpcPlayCustomAnnouncement("LIGHT SYSTEM SCP079RECON6", false);
-                Plugin.active = true;
-                Plugin.activeNextRound = false;
-
                 broadcast = Object.FindObjectOfType<Broadcast>();
+                cassie = PlayerManager.localPlayer.GetComponent<MTFRespawn>();
+
                 broadcast.CallRpcAddElement("This is Blackout, a custom gamemode. If you have never played it, please press [`] or [~] for more info.", 10, false);
                 foreach (Player player in players)
                 {
@@ -116,9 +128,37 @@ namespace Blackout
                                               "079 is like the facility's surveilance. They has access tier 5 and their goal is to help the scientists. Using any speaker activates intercom and you have access to map, so feel free to guide others out.");
                 }
 
+                int timerRound = curRound;
+                Timing.In(inaccuracy =>
+                {
+                    if (timerRound == curRound)
+                    {
+                        cassie.CallRpcPlayCustomAnnouncement("LIGHT SYSTEM SCP079RECON6", false);
 
-                Timing.In(TenSecondBlackout, 8.7f);
+                        Timing.In(x => TenSecondBlackout(timerRound, x), 8.7f + inaccuracy);
+                    }
+                }, 30f);
+
                 //Timing.In(RefreshGenerators, 1f);
+                Timing.In(x => AnnounceTime(Plugin.maxTime, timerRound, x), 60);
+            }
+        }
+
+        private static void AnnounceTime(int minutes, int timerRound, float inaccuracy = 0)
+        {
+            if (timerRound == curRound)
+            {
+                cassie.RpcPlayCustomAnnouncement($"{minutes} MINUTES REMAINING", true);
+
+                if (minutes == 1)
+                {
+                    AlphaWarheadController.host.NetworktimeToDetonation = 60f;
+                    AlphaWarheadController.host.StartDetonation();
+                }
+                else
+                {
+                    Timing.In(x => AnnounceTime(--minutes, timerRound, x), 60 + inaccuracy);
+                }
             }
         }
 
@@ -144,14 +184,14 @@ namespace Blackout
         }
         */
 
-        private static void TenSecondBlackout(float inaccuracy = 0)
+        private static void TenSecondBlackout(int timerRound, float inaccuracy = 0)
         {
-            if (Plugin.active)
+            if (timerRound == curRound)
             {
-                Timing.In(TenSecondBlackout, 11 + inaccuracy);
-            }
+                Timing.In(x => TenSecondBlackout(timerRound, x), 11 + inaccuracy);
 
-            Generator079.generators[0].CallRpcOvercharge();
+                Generator079.generators[0].CallRpcOvercharge();
+            }
         }
 
         public void OnDoorAccess(PlayerDoorAccessEvent ev)
@@ -160,8 +200,6 @@ namespace Blackout
             {
                 switch (ev.Door.Name)
                 {
-                    case "GATE_A":
-                    case "GATE_B":
                     case "CHECKPOINT_ENT":
                         ev.Allow = false;
                         ev.Destroy = false;
@@ -171,7 +209,7 @@ namespace Blackout
                         if ((escapeReady || (escapeReady = Generator079.generators.All(x => x.remainingPowerup <= 0))) && //if escape is known to be ready, and if not check if it is
                             ev.Player.TeamRole.Role == Role.SCIENTIST)
                         {
-                            ev.Player.SetRank("ESCAPED", "silver");
+                            ev.Player.SetRank("silver", "ESCAPED");
 
                             if (Plugin.escaped++ == 0) //first escapee
                             {
@@ -182,31 +220,38 @@ namespace Blackout
                                 scp.NetworkmaxMana = 49;
 
                                 bool isSpeaking = false;
+                                int timerRound = curRound;
                                 void SpeakerRefresh(float inaccuracy)
                                 {
-                                    if (scp.Speaker != null)
-                                    {
-                                        isSpeaking = true;
-                                        PluginManager.Manager.Server.Map.SetIntercomSpeaker(ev.Player);
-                                    }
-                                    else if (isSpeaking)
-                                    {
-                                        PluginManager.Manager.Server.Map.SetIntercomSpeaker(null);
-                                    }
-
-                                    if (Plugin.active)
+                                    if (Plugin.active && timerRound == curRound)
                                     {
                                         Timing.In(SpeakerRefresh, 1 + inaccuracy);
+
+                                        if (scp.Speaker != null)
+                                        {
+                                            isSpeaking = true;
+                                            PluginManager.Manager.Server.Map.SetIntercomSpeaker(ev.Player);
+                                        }
+                                        else if (isSpeaking)
+                                        {
+                                            PluginManager.Manager.Server.Map.SetIntercomSpeaker(null);
+                                        }
                                     }
                                 };
                                 Timing.In(SpeakerRefresh, 1);
 
-                                AlphaWarheadController.host.NetworktimeToDetonation = 60f;
-                                AlphaWarheadController.host.StartDetonation();
+                                if (AlphaWarheadController.host.inProgress)
+                                {
+                                    AlphaWarheadController.host.NetworktimeToDetonation = 60f;
+                                    AlphaWarheadController.host.StartDetonation();
+                                }
+
+                                broadcast.RpcAddElement($"The first ({Plugin.escaped}/{Plugin.players}) scientist has escaped and become 079. Cooperate with them to exit the facility.", 5, false);
                             }
                             else
                             {
                                 ev.Player.ChangeRole(Role.SPECTATOR);
+                                broadcast.RpcAddElement($"Another ({Plugin.escaped}/{Plugin.players}) scientist has escaped.", 5, false);
                             }
                         }
                         goto case "CHECKPOINT_ENT";
@@ -225,26 +270,28 @@ namespace Blackout
 
         public void OnCheckRoundEnd(CheckRoundEndEvent ev)
         {
-            if (Plugin.active && !Plugin.roundLock && Plugin.escaped >= Plugin.players)
+            if (Plugin.active && !Plugin.roundLock)
             {
-                ev.Status = ROUND_END_STATUS.MTF_VICTORY;
+                if (Plugin.escaped >= Plugin.players)
+                {
+                    ev.Status = ROUND_END_STATUS.MTF_VICTORY;
+                }
+                else if (ev.Server.GetPlayers().Count(x => x.TeamRole.Role != Role.SPECTATOR) == 0)
+                {
+                    ev.Status = ROUND_END_STATUS.OTHER_VICTORY;
+                }
+                else if (Plugin.players == 0)
+                {
+                    ev.Status = ROUND_END_STATUS.SCP_VICTORY;
+                }
             }
         }
 
-        /*
-         * updated it so now the command causes the next round to be a blackout round, and also added your ideas. very little testing for the command and i dont have enough people for it tho.
-
-25% (by default) players are 106 and instakill
-
-the rest are scientists and spawn in 049 chambers with card, radio, tablet, and if setting is on, flashlights. they have to escape 
-         */
-
         public void OnPlayerHurt(PlayerHurtEvent ev)
         {
-            if (Plugin.active && ev.DamageType == DamageType.SCP_106)
+            if (Plugin.active && ev.DamageType == DamageType.SCP_049)
             {
                 ev.Damage = 99999f;
-                Plugin.players--;
             }
         }
 
@@ -267,11 +314,14 @@ the rest are scientists and spawn in 049 chambers with card, radio, tablet, and 
         public void OnRoundRestart(RoundRestartEvent ev)
         {
             Plugin.active = false;
+            Plugin.respawnActive = false;
+
+            curRound++;
         }
 
         public void OnPlayerTriggerTesla(PlayerTriggerTeslaEvent ev)
         {
-            if (Plugin.active && ev.Player.TeamRole.Role == Role.SCP_106)
+            if (Plugin.active && ev.Player.TeamRole.Role == Role.SCIENTIST)
             {
                 ev.Triggerable = false;
             }
@@ -288,6 +338,46 @@ the rest are scientists and spawn in 049 chambers with card, radio, tablet, and 
         private void UpdatePlayers()
         {
             Plugin.players = PluginManager.Manager.Server.GetPlayers().Count(x => x.TeamRole.Role == Role.SCIENTIST);
+        }
+
+        public void OnPlayerDie(PlayerDeathEvent ev)
+        {
+            if (Plugin.active && ev.Player.TeamRole.Role == Role.SCIENTIST)
+            {
+                Plugin.players--;
+                
+                Timing.In(inaccuracy =>
+                {
+                    if (Plugin.active && Plugin.respawnActive)
+                    {
+                        ev.Player.ChangeRole(Role.SCIENTIST, false, false, false);
+                        ev.Player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+                        Plugin.players++;
+                    }
+                }, Plugin.respawnTime);
+            }
+        }
+
+        public void OnElevatorUse(PlayerElevatorUseEvent ev)
+        {
+            if (Plugin.active)
+            {
+                switch (ev.Elevator.ElevatorType)
+                {
+                    case ElevatorType.LiftA:
+                    case ElevatorType.LiftB:
+                        ev.AllowUse = false;
+                        break;
+                }
+            }
+        }
+
+        public void OnStartCountdown(WarheadStartEvent ev)
+        {
+            if (Plugin.active)
+            {
+                ev.OpenDoorsAfter = false;
+            }
         }
     }
 }

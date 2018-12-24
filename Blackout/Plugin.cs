@@ -20,6 +20,7 @@ namespace Blackout
         public static Plugin instance;
 
         public static bool active;
+        public static bool respawnActive;
         public static bool activeNextRound;
 
         public static bool roundLock;
@@ -29,12 +30,15 @@ namespace Blackout
         public static string[] validRanks;
         public static bool giveFlashlights;
         public static float percentLarrys;
+        public static int maxTime;
+        public static float respawnTime;
 
         public override void Register()
         {
             larrySpawnPoints = new[]
             {
                 Role.SCP_096,
+                Role.SCP_106,
                 Role.SCP_939_53,
                 Role.SCP_939_89
             };
@@ -42,13 +46,16 @@ namespace Blackout
             instance = this;
             Timing.Init(this);
 
-            AddConfig(new ConfigSetting("blackout_ranks", new string[0], SettingType.LIST, true, "Valid ranks for the BLACKOUT command."));
-            AddConfig(new ConfigSetting("blackout_flashlights", true, SettingType.BOOL, true, "If everyone should get a flashlight on spawn."));
-            AddConfig(new ConfigSetting("blackout_larry_percent", 0.2f, SettingType.FLOAT, true, "Percentage of players that should be Larry."));
+            AddConfig(new ConfigSetting("bo_ranks", new string[0], SettingType.LIST, true, "Valid ranks for the BLACKOUT command."));
+            AddConfig(new ConfigSetting("bo_flashlights", true, SettingType.BOOL, true, "If everyone should get a flashlight on spawn."));
+            AddConfig(new ConfigSetting("bo_slendies_percent", 0.2f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
+            AddConfig(new ConfigSetting("bo_max_time", 7, SettingType.NUMERIC, true, "Time before the round ends"));
+            AddConfig(new ConfigSetting("bo_respawn_time", 15f, SettingType.FLOAT, true, "Time before a scientist respawns with nothing in 049."));
 
             AddEventHandlers(new EventHandlers());
 
-            AddCommand("blackout", new CommandHandler());
+            AddCommand("blackout", new ActivatorCommandHandler());
+            AddCommand("blackoutresp", new RespawnCommandHandler());
         }
 
         public override void OnEnable()
