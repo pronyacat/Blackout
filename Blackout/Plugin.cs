@@ -1,11 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using scp4aiur;
-using Smod2;
+﻿using scp4aiur;
 using Smod2.API;
 using Smod2.Attributes;
 using Smod2.Config;
-using UnityEngine;
 
 namespace Blackout
 {

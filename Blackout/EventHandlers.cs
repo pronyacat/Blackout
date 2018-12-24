@@ -7,14 +7,12 @@ using Smod2.EventHandlers;
 using Smod2.Events;
 using Smod2.EventSystem.Events;
 using UnityEngine;
-using UnityEngine.Networking;
 
 namespace Blackout
 {
     public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerCheckRoundEnd, IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerDisconnect
     {
         private bool escapeReady;
-        private string[] activeGenerators;
         private Broadcast broadcast;
 
         public void OnRoundStart(RoundStartEvent ev)
@@ -117,9 +115,8 @@ namespace Blackout
                                               "If you are caught by a 106, you are instantly dead. However, if you manage to escape first you will become SCP-079.\n" +
                                               "079 is like the facility's surveilance. They has access tier 5 and their goal is to help the scientists. Using any speaker activates intercom and you have access to map, so feel free to guide others out.");
                 }
-                activeGenerators = new string[0];
-                
-                
+
+
                 Timing.In(TenSecondBlackout, 8.7f);
                 //Timing.In(RefreshGenerators, 1f);
             }
@@ -282,7 +279,10 @@ the rest are scientists and spawn in 049 chambers with card, radio, tablet, and 
 
         public void OnDisconnect(DisconnectEvent ev)
         {
-            UpdatePlayers();
+            if (Plugin.active)
+            {
+                UpdatePlayers();
+            }
         }
 
         private void UpdatePlayers()
