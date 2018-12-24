@@ -22,10 +22,11 @@ namespace scp4aiur
         private static int jobId;
         private static Dictionary<int, QueueItem> jobs;
 
-        public Timing(Action<string> log)
+        public static void Init(Smod2.Plugin plugin, Priority priority = Priority.Normal)
         {
-            Timing.log = log;
-            
+            log = plugin.Info;
+            plugin.AddEventHandlers(new Timing(), priority);
+
             jobId = int.MinValue;
             jobs = new Dictionary<int, QueueItem>();
         }

@@ -26,7 +26,7 @@ namespace Blackout
             AddConfig(new ConfigSetting("blackout_ranks", new string[0], SettingType.LIST, true, "Valid ranks for the BLACKOUT command."));
             AddConfig(new ConfigSetting("blackout_flashlights", true, SettingType.BOOL, true, "If everyone should get a flashlight on spawn."));
 
-            AddEventHandlers(new Timing(Info));
+            Timing.Init(this);
             AddEventHandlers(new EventHandlers());
 
             AddCommand("blackout", new CommandHandler());
