@@ -32,23 +32,31 @@ namespace scp4aiur
         }
 
         /// <summary>
+        /// Queues a job.
+        /// </summary>
+        /// <param name="item">Job to queue.</param>
+        private static int Queue(QueueItem item)
+        {
+            int id = jobId++;
+            jobs.Add(id, item);
+
+            return id;
+        }
+
+        /// <summary>
         /// Queues a job for the next tick.
         /// </summary>
         /// <param name="action">Job to execute.</param>
-        public static int NextTick(Action action)
+        public static int Next(Action action)
         {
-            int id = jobId++;
-            
-            jobs.Add(id, new NextTickQueue(action));
-
-            return id;
+            return Queue(new NextTickQueue(action));
         }
 
         /// <summary>
         /// Removes a job from the queue.
         /// </summary>
         /// <param name="id">ID of the job to remove.</param>
-        public static bool RemoveNextTick(int id)
+        public static bool Remove(int id)
         {
             return jobs.Remove(id);
         }
@@ -58,22 +66,9 @@ namespace scp4aiur
         /// </summary>
         /// <param name="action">Job to execute.</param>
         /// <param name="ticks">Number of ticks to wait.</param>
-        public static int NextTicks(Action action, int ticks)
+        public static int InTicks(Action action, int ticks)
         {
-            int id = jobId++;
-            
-            jobs.Add(id, new AfterTicksQueue(action, ticks));
-
-            return id;
-        }
-
-        /// <summary>
-        /// Removes a job from the queue.
-        /// </summary>
-        /// <param name="id">ID of the job to remove.</param>
-        public static bool RemoveNextTicks(int id)
-        {
-            return jobs.Remove(id);
+            return Queue(new AfterTicksQueue(action, ticks));
         }
 
         /// <summary>
@@ -81,22 +76,9 @@ namespace scp4aiur
         /// </summary>
         /// <param name="action">Job to execute.</param>
         /// <param name="seconds">Number of seconds to wait.</param>
-        public static int Timer(Action<float> action, float seconds)
+        public static int In(Action<float> action, float seconds)
         {
-            int id = jobId++;
-            
-            jobs.Add(id, new TimerQueue(action, seconds));
-
-            return id;
-        }
-
-        /// <summary>
-        /// Removes a job from the queue.
-        /// </summary>
-        /// <param name="id">ID of the job to remove.</param>
-        public static bool RemoveTimer(int id)
-        {
-            return jobs.Remove(id);
+            return Queue(new TimerQueue(action, seconds));
         }
 
         /// <summary>

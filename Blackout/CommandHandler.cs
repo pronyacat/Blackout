@@ -28,18 +28,15 @@ namespace Blackout
                 {
                     if (Plugin.giveFlashlights)
                     {
-                        foreach (Player p in PluginManager.Manager.Server.GetPlayers())
+                        foreach (Player p in PluginManager.Manager.Server.GetPlayers().Where(x => x.HasItem(ItemType.FLASHLIGHT)))
                         {
-                            if (!p.HasItem(ItemType.FLASHLIGHT))
-                            {
-                                p.GiveItem(ItemType.FLASHLIGHT);
-                            }
+                            p.GiveItem(ItemType.FLASHLIGHT);
                         }
                     }
 
                     PlayerManager.localPlayer.GetComponent<MTFRespawn>().CallRpcPlayCustomAnnouncement("LIGHT SYSTEM SCP079RECON6", false);
 
-                    Timing.Timer(TenSecondBlackout, 8.7f);
+                    Timing.In(TenSecondBlackout, 8.7f);
                 }
 
                 return new[]
@@ -50,7 +47,7 @@ namespace Blackout
 
             return new[]
             {
-                $"You (rank {player.GetRankName()}) do not have permissions to that command."
+                $"You (rank {player?.GetRankName() ?? "NULL"}) do not have permissions to that command."
             };
         }
 
@@ -60,7 +57,7 @@ namespace Blackout
 
             if (run)
             {
-                Timing.Timer(TenSecondBlackout, 11 + inaccuracy);
+                Timing.In(TenSecondBlackout, 11 + inaccuracy);
             }
         }
 
