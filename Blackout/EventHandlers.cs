@@ -7,7 +7,6 @@ using Smod2.EventHandlers;
 using Smod2.Events;
 using Smod2.EventSystem.Events;
 using UnityEngine;
-using Item = Smod2.API.Item;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
@@ -16,7 +15,7 @@ namespace Blackout
     public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn,
         IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, 
         IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, 
-        IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown
+        IEventHandlerElevatorUse
     {
         private static int curRound;
         private bool escapeReady;
@@ -113,7 +112,7 @@ namespace Blackout
                     availableSpawns.Remove(spawnRole);
                     if (availableSpawns.Count == 0)
                     {
-                        availableSpawns = Plugin.larrySpawnPoints.ToList();
+                        availableSpawns.AddRange(Plugin.larrySpawnPoints);
                     }
 
                     player.ChangeRole(Role.SCP_049);
@@ -265,9 +264,9 @@ namespace Blackout
 
         public void OnPlayerHurt(PlayerHurtEvent ev)
         {
-            if (Plugin.active && (ev.DamageType == DamageType.SCP_049 || ev.DamageType == DamageType.SCP_049_2))
+            if (Plugin.active && ev.DamageType == DamageType.NUKE && ev.Player.TeamRole.Team == Smod2.API.Team.SCP)
             {
-                ev.Damage = 99999f;
+                ev.Damage = 0;
             }
         }
 
@@ -329,14 +328,6 @@ namespace Blackout
                         ev.AllowUse = false;
                         break;
                 }
-            }
-        }
-
-        public void OnStartCountdown(WarheadStartEvent ev)
-        {
-            if (Plugin.active)
-            {
-                ev.OpenDoorsAfter = false;
             }
         }
     }

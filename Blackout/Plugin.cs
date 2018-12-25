@@ -57,12 +57,8 @@ namespace Blackout
             AddCommand("blackout", new CommandHandler());
         }
 
-        public override void OnEnable()
-        {
-        }
+        public override void OnEnable() {}
 
-        public override void OnDisable()
-        {
-        }
+        public override void OnDisable() {}
     }
 }
