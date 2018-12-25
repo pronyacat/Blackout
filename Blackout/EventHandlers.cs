@@ -15,9 +15,8 @@ namespace Blackout
 {
     public class EventHandlers : IEventHandlerWaitingForPlayers, IEventHandlerRoundStart, 
         IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
-        IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, IEventHandlerRoundRestart,
-        IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, IEventHandlerElevatorUse,
-        IEventHandlerCheckRoundEnd, IEventHandlerWarheadStartCountdown
+        IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
+        IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, IEventHandlerElevatorUse
     {
         private readonly List<int> timers;
 
@@ -29,7 +28,6 @@ namespace Blackout
 
         private string[] activeGenerators;
         private List<Smod2.API.TeslaGate> teslas;
-        private DateTimeOffset warheadStartAt;
 
         #region Config
         public bool giveFlashlights;
@@ -98,6 +96,8 @@ namespace Blackout
             List<Smod2.API.Door> doors = ev.Server.Map.GetDoors();
             doors.First(x => x.Name == "CHECKPOINT_ENT").Locked = true;
             doors.First(x => x.Name == "HCZ_ARMORY").Locked = true;
+
+            AlphaWarheadController.host.SetLocked(true);
             #endregion
 
             #region Items
@@ -243,7 +243,8 @@ namespace Blackout
 
         private void EscapeScientist(Player player)
         {
-            player.SetRank("silver", "ESCAPED");
+            string rank = player.GetRankName();
+            player.SetRank("silver", $"[ESCAPED]{(string.IsNullOrWhiteSpace(rank) ? "" : $" {rank}")}");
 
             foreach (Smod2.API.Item item in player.GetInventory()) //drop items before converting
             {
@@ -292,7 +293,7 @@ namespace Blackout
 
             if (minutes == 1)
             {
-                cassieLine += " . ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED.";
+                cassieLine += " . ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED";
                 const float cassieDelay = 9f;
 
                 timers.Add(Timing.In(x =>
@@ -308,6 +309,28 @@ namespace Blackout
 
             cassie.CallRpcPlayCustomAnnouncement(cassieLine, false);
         }
+
+        private string GetGeneratorName(string rootName)
+        {
+            if (rootName.Length > 5 && (rootName[5] == '$' || rootName[5] == '!'))
+            {
+                rootName = rootName.Substring(1);
+            }
+
+            rootName = rootName.Substring(5);
+
+            switch (rootName)
+            {
+                case "ROOM3AR":
+                    return "ARMORY";
+
+                case "TESTROOM":
+                    return "939";
+
+                default:
+                    return rootName;
+            }
+        }
         
         private void RefreshGeneratorsLoop(float inaccuracy = 0)
         {
@@ -320,18 +343,7 @@ namespace Blackout
             {
                 foreach (string generator in newActiveGenerators.Except(activeGenerators))
                 {
-                    string generatorWord = generator.Substring(5);
-                    if (generatorWord.Length > 0 && (generatorWord[0] == '$' || generatorWord[0] == '!'))
-                    {
-                        generatorWord = generator.Substring(1);
-                    }
-
-					if (generatorWord.ToUpper() == "ROOM3AR") // This one has such a weird name i had to add this for it, remove this if you think of a better way to do this
-						generatorWord = "ARMORY";
-					if (generatorWord.ToUpper() == "TESTROOM") // This one too
-						generatorWord = "939";
-
-					broadcast.CallRpcAddElement($"Generator {generatorWord.ToUpper()} powering up...", 5, false);
+                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator).ToUpper()} powering up...", 5, false);
                 }
 
                 activeGenerators = newActiveGenerators;
@@ -402,23 +414,6 @@ namespace Blackout
             if (Plugin.active)
             {
                 ev.AllowSummon = false;
-            }
-        }
-
-        public void OnStartCountdown(WarheadStartEvent ev)
-        {
-            if (Plugin.active)
-            {
-                warheadStartAt = DateTimeOffset.UtcNow;
-            }
-        }
-
-        public void OnStopCountdown(WarheadStopEvent ev)
-        {
-            if (Plugin.active)
-            {
-                ev.Cancel = true;
-                AlphaWarheadController.host.NetworktimeToDetonation = (float)DateTimeOffset.UtcNow.Subtract(warheadStartAt).TotalSeconds;
             }
         }
 
