@@ -23,11 +23,8 @@ namespace Blackout
 				{
 					switch (args[0])
 					{
-						case "enable":
-							if (!Plugin.active)
-							{
-								Plugin.activeNextRound = true;
-							}
+						case "toggle":
+							Plugin.activeNextRound = !Plugin.activeNextRound;
 
 							return new[]
 							{
@@ -41,8 +38,8 @@ namespace Blackout
 							{
 								return new[]
 								{
-									"Blackout isn't even running, but respawn is enabled if you say so."
-								};
+                                    $"Blackout isn't even running, but respawn is toggle {(Plugin.respawnActive ? "on" : "off")} if you say so."
+                                };
 							}
 
 							return new[]

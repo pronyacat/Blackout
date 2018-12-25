@@ -27,12 +27,6 @@ namespace Blackout
         public static bool roundLock;
 
         public static string[] validRanks;
-        public static bool giveFlashlights;
-        public static float percentLarrys;
-        public static int maxTime;
-        public static float respawnTime;
-        public static float uspTime;
-		public static float startDelay;
 
         public override void Register()
         {
@@ -48,13 +42,14 @@ namespace Blackout
 
             AddConfig(new ConfigSetting("bo_ranks", new string[0], SettingType.LIST, true, "Valid ranks for the BLACKOUT command."));
             AddConfig(new ConfigSetting("bo_flashlights", true, SettingType.BOOL, true, "If everyone should get a flashlight on spawn."));
-            AddConfig(new ConfigSetting("bo_slendy_percent", 0.2f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
+            AddConfig(new ConfigSetting("bo_slendy_percent", 0.1f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
             AddConfig(new ConfigSetting("bo_max_time", 7, SettingType.NUMERIC, true, "Time before the round ends"));
             AddConfig(new ConfigSetting("bo_respawn_time", 15f, SettingType.FLOAT, true, "Time before a dead scientist respawns with nothing in 049 (if respawn is enabled via command)."));
 			AddConfig(new ConfigSetting("bo_usp_time", 5 * 60f, SettingType.FLOAT, true, "Time until a USP spawns in nuke armory."));
 			AddConfig(new ConfigSetting("bo_start_delay", 30f, SettingType.FLOAT, true, "Time until the round starts."));
+            AddConfig(new ConfigSetting("bo_tesla_flicker", true, SettingType.BOOL, true, "If teslas should activate on light flicker."));
 
-			AddEventHandlers(new EventHandlers());
+            AddEventHandlers(new EventHandlers());
 
             AddCommand("blackout", new CommandHandler());
         }
