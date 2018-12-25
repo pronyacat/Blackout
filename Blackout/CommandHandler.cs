@@ -24,11 +24,12 @@ namespace Blackout
 					switch (args[0])
 					{
 						case "toggle":
-							Plugin.activeNextRound = !Plugin.activeNextRound;
+							Plugin.toggled = !Plugin.toggled;
+							Plugin.activeNextRound = Plugin.toggled;
 
 							return new[]
 							{
-								$"Toggled blackout {(Plugin.activeNextRound ? "on" : "off")} for next round."
+								$"Blackout has been toggled {(Plugin.toggled ? "on" : "off")}."
 							};
 
 						case "respawn":
@@ -46,6 +47,24 @@ namespace Blackout
 							{
 								$"Toggled Blackout respawn {(Plugin.respawnActive ? "on" : "off")}. It will reset to off next round."
 							};
+					}
+				}
+				else
+				{
+					if (!Plugin.toggled)
+					{
+						Plugin.activeNextRound = !Plugin.activeNextRound;
+						return new[]
+						{
+							$"Blackout has been {(Plugin.activeNextRound ? "enabled" : "disabled")} for next round."
+						};
+					}
+					else
+					{
+						return new string[]
+						{
+							$"Blackout is already toggled on."
+						};
 					}
 				}
 			}

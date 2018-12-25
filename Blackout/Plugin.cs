@@ -22,6 +22,7 @@ namespace Blackout
 
         public static bool active;
         public static bool respawnActive;
+		public static bool toggled;
         public static bool activeNextRound;
 
         public static bool roundLock;

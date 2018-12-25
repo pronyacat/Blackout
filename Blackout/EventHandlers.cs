@@ -68,7 +68,8 @@ namespace Blackout
             }
 
             Plugin.active = true;
-            Plugin.activeNextRound = false;
+			if (!Plugin.toggled)
+				Plugin.activeNextRound = false;
 		    isRoundStarted = false;
             #endregion
 
@@ -150,8 +151,12 @@ namespace Blackout
 		    // Set every class to scientist
 		    foreach (Player player in players)
 		    {
-			    SpawnScientist(player);
-		    }
+				player.ChangeRole(Role.SCIENTIST, false, false);
+				foreach (Smod2.API.Item item in player.GetInventory())
+					item.Remove();
+				player.GiveItem(ItemType.FLASHBANG);
+				player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+			}
 
 		    // Set 049 spawn points
             List<Role> availableSpawns = Plugin.larrySpawnPoints.ToList();
@@ -201,11 +206,14 @@ namespace Blackout
                     timers.Add(Timing.In(z => // Change role and teleport players
                     {
                         // Spawn 049s
-                        for (int i = 0; i < slendies.Length; i++)
-                        {
-                            slendies[i].Teleport(spawnPoints[i]);
-                            slendies[i].ChangeRole(Role.SCP_049, false, false);
-                        }
+                       // for (int i = 0; i < slendies.Length; i++)
+                        //{
+                        //    slendies[i].Teleport(spawnPoints[i]);
+                        //    slendies[i].ChangeRole(Role.SCP_049, false, false);
+                        //}
+
+						foreach (Player player in possibleSlendies)
+							ScientistInitInv(player);
 
                         timers.Add(Timing.InTicks(() => // Unlock round
                         {
@@ -218,11 +226,13 @@ namespace Blackout
 
 		private void SpawnScientist(Player player)
 		{
-			player.ChangeRole(Role.SCIENTIST, false, false);
+
+		}
+
+		private void ScientistInitInv(Player player)
+		{
 			foreach (Smod2.API.Item item in player.GetInventory())
-			{
 				item.Remove();
-			}
 
 			player.GiveItem(ItemType.SCIENTIST_KEYCARD);
 			player.GiveItem(ItemType.RADIO);
@@ -230,8 +240,6 @@ namespace Blackout
 
 			if (giveFlashlights)
 				player.GiveItem(ItemType.FLASHLIGHT);
-
-			player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
 		}
 
         private void EscapeScientist(Player player)
@@ -314,12 +322,15 @@ namespace Blackout
                 foreach (string generator in newActiveGenerators.Except(activeGenerators))
                 {
                     string generatorWord = generator.Substring(5);
-                    if (generatorWord.Length > 0 && generatorWord[0] == '$')
+                    if (generatorWord.Length > 0 && (generatorWord[0] == '$' || generatorWord[0] == '!'))
                     {
                         generatorWord = generator.Substring(1);
                     }
 
-                    broadcast.CallRpcAddElement($"Generator {generatorWord.ToUpper()} engaging", 5, false);
+					if (generatorWord.ToUpper() == "ROOM3AR") // This one has such a weird name i had to add this for it, remove this if you think of a better way to do this
+						generatorWord = "ARMORY";
+
+                    broadcast.CallRpcAddElement($"Generator {generatorWord.ToUpper()} powering up...", 5, false);
                 }
 
                 activeGenerators = newActiveGenerators;
@@ -412,7 +423,7 @@ namespace Blackout
 
         public void OnRoundRestart(RoundRestartEvent ev)
         {
-            Plugin.active = false;
+			Plugin.active = false;
             Plugin.respawnActive = false;
 
             // Prevent timers from rolling into next round
@@ -462,7 +473,7 @@ namespace Blackout
         // Lock round when everyone is in room
 		public void OnCheckRoundEnd(CheckRoundEndEvent ev)
 		{
-			if (!isRoundStarted)
+			if (!isRoundStarted && Plugin.active)
 				ev.Status = ROUND_END_STATUS.ON_GOING;
 		}
     }
