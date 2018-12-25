@@ -15,7 +15,7 @@ namespace Blackout
 {
     public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn,
         IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, 
-        IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerDisconnect, IEventHandlerPlayerDie, 
+        IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, 
         IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown
     {
         private static int curRound;
@@ -301,19 +301,6 @@ namespace Blackout
             {
                 ev.Triggerable = false;
             }
-        }
-
-        public void OnDisconnect(DisconnectEvent ev)
-        {
-            if (Plugin.active)
-            {
-                UpdatePlayers();
-            }
-        }
-
-        private void UpdatePlayers()
-        {
-            Plugin.players = PluginManager.Manager.Server.GetPlayers().Count(x => x.TeamRole.Role == Role.SCIENTIST);
         }
 
         public void OnPlayerDie(PlayerDeathEvent ev)

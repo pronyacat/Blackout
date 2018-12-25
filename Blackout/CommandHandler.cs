@@ -38,7 +38,7 @@ namespace Blackout
                             {
                                 $"Toggled blackout {(Plugin.activeNextRound ? "on" : "off")} for next round."
                             };
-w
+
                         case "respawn":
                             Plugin.respawnActive = !Plugin.respawnActive;
 
