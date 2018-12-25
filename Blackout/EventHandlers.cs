@@ -312,12 +312,12 @@ namespace Blackout
 
         private string GetGeneratorName(string rootName)
         {
-            if (rootName.Length > 5 && (rootName[5] == '$' || rootName[5] == '!'))
+            rootName = rootName.Substring(5).ToUpper();
+
+            if (rootName.Length > 0 && (rootName[0] == '$' || rootName[0] == '!'))
             {
                 rootName = rootName.Substring(1);
             }
-
-            rootName = rootName.Substring(5);
 
             switch (rootName)
             {
@@ -343,7 +343,7 @@ namespace Blackout
             {
                 foreach (string generator in newActiveGenerators.Except(activeGenerators))
                 {
-                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator).ToUpper()} powering up...", 5, false);
+                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator)} powering up...", 5, false);
                 }
 
                 activeGenerators = newActiveGenerators;
