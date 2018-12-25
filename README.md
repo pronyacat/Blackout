@@ -28,12 +28,13 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 
 | Config        | Value Type | Default | Description |
 | :-------------: | :---------: | :---------: |:------ |
-| bo_ranks | List |  | Ranks allowed to run the `BLACKOUT` command. |
+| bo_ranks | String List |  | Ranks allowed to run the `BLACKOUT` command. |
 | bo_flashlights | Boolean | True | If scientists should get a flashlight when the lights go out. |
 | bo_flashbangs | Boolean | True | If everyone should get a flashbang on spawn. All flashbangs are removed when the lights go out. |
 | bo_slendy_percent | Float | 0.1 | Percentage of players that should be slendies (SCP-049). |
-| bo_max_time | Integer | 7 | Time in minutes before the round ends. |
-| bo_respawn_time | Float | 15 | Time before a dead scientist respawns with nothing in 049 (if respawn is enabled via command). |
+| bo_max_time | Float | 600 | Time in seconds before the round ends. |
+| bo_respawn_time | Float | 15 | Time in seconds before a dead scientist respawns with nothing in 049 (if respawn is enabled via command). |
 | bo_usp_time | Float | 300 | Time in seconds before a USP spawns in nuke armory. |
 | bo_start_delay | Float | 30 | Time in seconds until the round starts. |
 | bo_tesla_flicker | Boolean | True | If teslas should activate on light flicker. |
+| bo_announce_times | Integer List | 7,4,2,1 | Minute times for CASSIE to announce how many minutes are remaining. |
