@@ -259,10 +259,6 @@ namespace Blackout
                 item.Remove();
             }
 
-            player.GiveItem(ItemType.E11_STANDARD_RIFLE);
-            player.GiveItem(ItemType.RADIO);
-            player.GiveItem(ItemType.FRAG_GRENADE);
-
             GameObject playerObj = (GameObject) player.GetGameObject();
             Inventory inv = playerObj.GetComponent<Inventory>();
             WeaponManager manager = playerObj.GetComponent<WeaponManager>();
@@ -282,10 +278,12 @@ namespace Blackout
             }
 
             inv.AddNewItem((int)ItemType.E11_STANDARD_RIFLE, 40, manager.modPreferences[weapon, 0], manager.modPreferences[weapon, 1], 4); // Flashlight attachment forced
+			player.GiveItem(ItemType.RADIO);
+			player.GiveItem(ItemType.FRAG_GRENADE);
 
-            // todo: add grenade launcher and turn off ff for nade launcher
+			// todo: add grenade launcher and turn off ff for nade launcher
 
-            PluginManager.Manager.Server.Round.Stats.ScientistsEscaped++;
+			PluginManager.Manager.Server.Round.Stats.ScientistsEscaped++;
         }
 
         private void AnnounceTimeLoops(int minutes, float inaccuracy = 0)
@@ -313,7 +311,7 @@ namespace Blackout
 
         private string GetGeneratorName(string rootName)
         {
-            rootName = rootName.Substring(5).ToUpper();
+            rootName = rootName.Substring(5).Trim().ToUpper();
 
             if (rootName.Length > 0 && (rootName[0] == '$' || rootName[0] == '!'))
             {
