@@ -162,7 +162,7 @@ namespace Blackout
 		    // Set every class to scientist
 		    foreach (Player player in players)
 		    {
-				SpawnScientist(player, false);
+				SpawnScientist(player, false, false);
 				foreach (Smod2.API.Item item in player.GetInventory())
 					item.Remove();
 				if (giveFlashbangs)
@@ -239,10 +239,13 @@ namespace Blackout
             }, startDelay - (cassieDelay + flickerDelay))); // Cassie and flicker delay is subtracted in order to start the round by that time
         }
 
-		private void SpawnScientist(Player player, bool initInv = true)
+		private void SpawnScientist(Player player, bool isScientist, bool initInv)
 		{
-			player.ChangeRole(Role.SCIENTIST);
+		    if (!isScientist)
+		        player.ChangeRole(Role.SCIENTIST);
+
 			player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+
 			if (initInv)
 				ScientistInitInv(player);
 		}
@@ -428,7 +431,7 @@ namespace Blackout
 		{
 			if (Plugin.active && ev.Player.TeamRole.Role == Role.SCIENTIST)
 			{
-				SpawnScientist(ev.Player);
+				SpawnScientist(ev.Player, true, true);
 			}
 		}
 
