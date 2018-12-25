@@ -114,9 +114,9 @@ namespace Blackout
             // Delete rifles and make them into USP spawns
             List<Smod2.API.Item> rifles = ev.Server.Map.GetItems(ItemType.E11_STANDARD_RIFLE, true);
             Vector[] uspSpawns = rifles.Select(x => x.GetPosition()).ToArray();
-            foreach (Smod2.API.Item rifle in rifles)
+            foreach (Smod2.API.Item weapon in rifles.Concat(ev.Server.Map.GetItems(ItemType.USP, true)))
             {
-                rifle.Remove();
+                weapon.Remove();
             }
 
             // Spawn all USPs in defined time
@@ -196,7 +196,7 @@ namespace Blackout
                 timers.Add(Timing.In(y => // Blackout
                 {
                     TenSecondBlackoutLoop(y);
-                    RefreshGeneratorsLoop();
+                    RefreshGeneratorsLoop(y);
                     timers.Add(Timing.In(z => AnnounceTimeLoops(maxTime - 1, z), 60)); // Time announcements and nuke end
 
                     timers.Add(Timing.In(z => // Change role and teleport players
@@ -305,7 +305,7 @@ namespace Blackout
         
         private void RefreshGeneratorsLoop(float inaccuracy = 0)
         {
-            timers.Add(Timing.In(RefreshGeneratorsLoop, 5 + inaccuracy));
+            timers.Add(Timing.In(RefreshGeneratorsLoop, 1 + inaccuracy));
 
             string[] newActiveGenerators =
                 Generator079.generators.Where(x => x.isTabletConnected).Select(x => x.curRoom).ToArray();
@@ -314,7 +314,13 @@ namespace Blackout
             {
                 foreach (string generator in newActiveGenerators.Except(activeGenerators))
                 {
-                    broadcast.CallRpcAddElement($"{generator} engaging", 5, false);
+                    string generatorWord = generator.Substring(5);
+                    if (generatorWord.Length > 0 && generatorWord[0] == '$')
+                    {
+                        generatorWord = generator.Substring(1);
+                    }
+
+                    broadcast.CallRpcAddElement($"Generator {generatorWord.ToUpper()} engaging", 5, false);
                 }
 
                 activeGenerators = newActiveGenerators;
@@ -401,7 +407,7 @@ namespace Blackout
             if (Plugin.active)
             {
                 ev.Cancel = true;
-                ev.TimeLeft = (float)DateTimeOffset.UtcNow.Subtract(warheadStartAt).TotalSeconds;
+                AlphaWarheadController.host.NetworktimeToDetonation = (float)DateTimeOffset.UtcNow.Subtract(warheadStartAt).TotalSeconds;
             }
         }
 
