@@ -10,7 +10,6 @@ using Smod2.EventSystem.Events;
 using UnityEngine;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
-using TeslaGate = Smod2.API.TeslaGate;
 
 namespace Blackout
 {
