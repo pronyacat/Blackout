@@ -33,6 +33,7 @@ namespace Blackout
 
         #region Config
         public bool giveFlashlights;
+		public bool giveFlashbangs;
         public float percentLarrys;
         public int maxTime;
         public float respawnTime;
@@ -51,6 +52,7 @@ namespace Blackout
 			Plugin.validRanks = Plugin.instance.GetConfigList("bo_ranks");
 
 			giveFlashlights = Plugin.instance.GetConfigBool("bo_flashlights");
+			giveFlashbangs = Plugin.instance.GetConfigBool("bo_flashbangs");
 			percentLarrys = Plugin.instance.GetConfigFloat("bo_slendy_percent");
 			maxTime = Plugin.instance.GetConfigInt("bo_max_time");
 			respawnTime = Plugin.instance.GetConfigInt("bo_respawn_time");
@@ -154,7 +156,8 @@ namespace Blackout
 				player.ChangeRole(Role.SCIENTIST, false, false);
 				foreach (Smod2.API.Item item in player.GetInventory())
 					item.Remove();
-				player.GiveItem(ItemType.FLASHBANG);
+				if (giveFlashbangs)
+					player.GiveItem(ItemType.FLASHBANG);
 				player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
 			}
 
