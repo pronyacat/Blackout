@@ -17,59 +17,47 @@ namespace Blackout
                 valid = Plugin.validRanks.Contains(player.GetRankName());
             }
 
-            if (valid)
-            {
-                if (args.Length > 0)
-                {
-                    switch (args[0])
-                    {
-                        case "enable":
-                            if (!Plugin.active)
-                            {
-                                Plugin.activeNextRound = true;
-                                Plugin.roundLock = args.Length > 1 && bool.TryParse(args[1], out bool roundLock) && roundLock;
-                            }
-                            else
-                            {
-                                Plugin.roundLock = false;
-                            }
+			if (valid)
+			{
+				if (args.Length > 0)
+				{
+					switch (args[0])
+					{
+						case "enable":
+							if (!Plugin.active)
+							{
+								Plugin.activeNextRound = true;
+							}
 
-                            return new[]
-                            {
-                                $"Toggled blackout {(Plugin.activeNextRound ? "on" : "off")} for next round."
-                            };
+							return new[]
+							{
+								$"Toggled blackout {(Plugin.activeNextRound ? "on" : "off")} for next round."
+							};
 
-                        case "respawn":
-                            Plugin.respawnActive = !Plugin.respawnActive;
+						case "respawn":
+							Plugin.respawnActive = !Plugin.respawnActive;
 
-                            if (!Plugin.active)
-                            {
-                                return new[]
-                                {
-                                    "Blackout isn't even running, but respawn is enabled if you say so."
-                                };
-                            }
+							if (!Plugin.active)
+							{
+								return new[]
+								{
+									"Blackout isn't even running, but respawn is enabled if you say so."
+								};
+							}
 
-                            return new[]
-                            {
-                                $"Toggled Blackout respawn {(Plugin.respawnActive ? "on" : "off")}. It will reset to off next round."
-                            };
-                    }
-                }
-            }
-            else
-            {
-                return new[]
-                {
-                    "Invalid command."
-                };
-            }
+							return new[]
+							{
+								$"Toggled Blackout respawn {(Plugin.respawnActive ? "on" : "off")}. It will reset to off next round."
+							};
+					}
+				}
+			}
 
-            return new[]
-            {
-                $"You (rank {player?.GetRankName() ?? "NULL"}) do not have permissions to that command."
-            };
-        }
+			return new[]
+			{
+				$"You (rank {player?.GetRankName() ?? "NULL"}) do not have permissions to that command."
+			};
+		}
 
         public string GetUsage()
         {

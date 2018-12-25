@@ -58,6 +58,9 @@
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>..\References\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\References\UnityEngine.UI.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CommandHandler.cs" />

@@ -7,18 +7,20 @@ using Smod2.EventHandlers;
 using Smod2.Events;
 using Smod2.EventSystem.Events;
 using UnityEngine;
+using UnityEngine.UI;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 namespace Blackout
 {
-    public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn,
+    public class EventHandlers : IEventHandlerWaitingForPlayers, IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn,
         IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, 
         IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, 
-        IEventHandlerElevatorUse
+        IEventHandlerElevatorUse, IEventHandlerCheckRoundEnd
     {
         private static int curRound;
         private bool escapeReady;
+		private bool isRoundStarted;
         private Broadcast broadcast;
         private MTFRespawn cassie;
         private string[] activeGenerators;
@@ -28,20 +30,27 @@ namespace Blackout
             curRound = int.MinValue;
         }
 
+		public void OnWaitingForPlayers(WaitingForPlayersEvent ev)
+		{
+			Plugin.validRanks = Plugin.instance.GetConfigList("bo_ranks");
+			Plugin.giveFlashlights = Plugin.instance.GetConfigBool("bo_flashlights");
+			Plugin.percentLarrys = Plugin.instance.GetConfigFloat("bo_slendy_percent");
+			Plugin.maxTime = Plugin.instance.GetConfigInt("bo_max_time");
+			Plugin.respawnTime = Plugin.instance.GetConfigInt("bo_respawn_time");
+			Plugin.uspTime = Plugin.instance.GetConfigFloat("bo_usp_time");
+			Plugin.startDelay = Plugin.instance.GetConfigFloat("bo_start_delay");
+		}
+
         public void OnRoundStart(RoundStartEvent ev)
         {
-            Plugin.validRanks = Plugin.instance.GetConfigList("bo_ranks");
-            Plugin.giveFlashlights = Plugin.instance.GetConfigBool("bo_flashlights");
-            Plugin.percentLarrys = Plugin.instance.GetConfigFloat("bo_slendy_percent");
-            Plugin.maxTime = Plugin.instance.GetConfigInt("bo_max_time");
-            Plugin.respawnTime = Plugin.instance.GetConfigInt("bo_respawn_time");
-            Plugin.uspTime = Plugin.instance.GetConfigInt("bo_usp_time");
-
             if (Plugin.activeNextRound)
             {
                 Plugin.active = true;
                 Plugin.activeNextRound = false;
 
+				isRoundStarted = false;
+
+				// Lock elevators
                 foreach (Elevator elevator in ev.Server.Map.GetElevators())
                 {
                     switch (elevator.ElevatorType)
@@ -59,6 +68,8 @@ namespace Blackout
                 Smod2.API.Item[] guardCards = ev.Server.Map.GetItems(ItemType.GUARD_KEYCARD, true)
                     .Concat(ev.Server.Map.GetItems(ItemType.SENIOR_GUARD_KEYCARD, true)).ToArray();
 
+				// Spawn commander cards
+				// todo: remove USP spawning in nuke room
                 foreach (Smod2.API.Item item in guardCards)
                 {
                     ev.Server.Map.SpawnItem(ItemType.MTF_COMMANDER_KEYCARD, item.GetPosition(), Vector.Zero);
@@ -67,12 +78,14 @@ namespace Blackout
 
                 List<Player> players = ev.Server.GetPlayers();
                 List<Player> possibleSlendies = players.ToList();
+				// Get percentage of 049s based on players
                 int larryCount = Mathf.FloorToInt(players.Count * Plugin.percentLarrys);
                 if (larryCount == 0)
                 {
                     larryCount = 1;
                 }
 
+				// Get random 049s
                 Player[] slendies = new Player[larryCount];
                 for (int i = 0; i < larryCount; i++)
                 {
@@ -80,46 +93,42 @@ namespace Blackout
                     possibleSlendies.Remove(slendies[i]);
                 }
 
-                foreach (Player player in possibleSlendies)
-                {
-                    ev.Server.Round.Stats.ClassDEscaped = 0;
+				// Set every class to classd and scientist
+				foreach (Player player in ev.Server.GetPlayers())
+				{
+					SpawnScientist(player);
+				}
 
-                    player.ChangeRole(Role.SCIENTIST, false, false);
-                    foreach (Smod2.API.Item item in player.GetInventory())
-                    {
-                        item.Remove();
-                    }
-
-                    player.GiveItem(ItemType.SCIENTIST_KEYCARD);
-                    player.GiveItem(ItemType.RADIO);
-                    player.GiveItem(ItemType.WEAPON_MANAGER_TABLET);
-
-                    player.Teleport(ev.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
-                }
-
-                if (Plugin.giveFlashlights)
-                {
-                    foreach (Player player in possibleSlendies)
-                    {
-                        player.GiveItem(ItemType.FLASHLIGHT);
-                    }
-                }
-
+				// Set 049 spawn points
                 List<Role> availableSpawns = Plugin.larrySpawnPoints.ToList();
-                foreach (Player player in slendies)
-                {
-                    Role spawnRole = availableSpawns[Random.Range(0, availableSpawns.Count)];
-                    availableSpawns.Remove(spawnRole);
-                    if (availableSpawns.Count == 0)
-                    {
-                        availableSpawns.AddRange(Plugin.larrySpawnPoints);
-                    }
+				Role spawnRole = availableSpawns[Random.Range(0, availableSpawns.Count)];
+				availableSpawns.Remove(spawnRole);
+				if (availableSpawns.Count == 0)
+				{
+					availableSpawns.AddRange(Plugin.larrySpawnPoints);
+				}
 
-                    player.ChangeRole(Role.SCP_049);
-                    player.Teleport(ev.Server.Map.GetRandomSpawnPoint(spawnRole));
-                }
+				// Starts the round
+				Timing.In(x =>
+				{
+					// Spawn 049s
+					foreach (Player player in slendies)
+					{
+						player.ChangeRole(Role.SCP_049, false, false);
+						player.Teleport(ev.Server.Map.GetRandomSpawnPoint(spawnRole));
+					}
 
-                broadcast = Object.FindObjectOfType<Broadcast>();
+					Timing.In(y =>
+					{
+						isRoundStarted = true;
+					}, 1.3f);
+
+				}, Plugin.startDelay + 9.1f);
+
+				// todo: FIX NUKE ANNOY SHIT WHEN PRESSING DISABLE PLEASE THANKS
+
+				// Inform players
+				broadcast = Object.FindObjectOfType<Broadcast>();
                 cassie = PlayerManager.localPlayer.GetComponent<MTFRespawn>();
 
                 broadcast.CallRpcAddElement("This is Blackout, a custom gamemode. If you have never played it, please press [`] or [~] for more info.", 10, false);
@@ -140,7 +149,7 @@ namespace Blackout
 
                         Timing.In(x => TenSecondBlackout(timerRound, x), 8.7f + inaccuracy);
                     }
-                }, 30f);
+                }, Plugin.startDelay);
 
                 ev.Server.Map.GetItems(ItemType.MICROHID, true).First().Remove();
 
@@ -164,6 +173,24 @@ namespace Blackout
             }
         }
 
+		private void SpawnScientist(Player player)
+		{
+			player.ChangeRole(Role.SCIENTIST, false, false);
+			foreach (Smod2.API.Item item in player.GetInventory())
+			{
+				item.Remove();
+			}
+
+			player.GiveItem(ItemType.SCIENTIST_KEYCARD);
+			player.GiveItem(ItemType.RADIO);
+			player.GiveItem(ItemType.WEAPON_MANAGER_TABLET);
+
+			if (Plugin.giveFlashlights)
+				player.GiveItem(ItemType.FLASHLIGHT);
+
+			player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+		}
+
         private void AnnounceTime(int minutes, int timerRound, float inaccuracy = 0)
         {
             if (timerRound == curRound)
@@ -173,13 +200,13 @@ namespace Blackout
                 if (minutes == 1)
                 {
                     cassieLine += " . ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED.";
-                    const float cassieDelay = 8f;
+                    const float cassieDelay = 9f;
 
                     Timing.In(x =>
                     {
-                        AlphaWarheadController.host.NetworktimeToDetonation = 60 - cassieDelay + inaccuracy;
                         AlphaWarheadController.host.StartDetonation();
-                    }, cassieDelay);
+						AlphaWarheadController.host.NetworktimeToDetonation = 60 - cassieDelay + inaccuracy;
+					}, cassieDelay);
                 }
                 else
                 {
@@ -227,29 +254,51 @@ namespace Blackout
         {
             if (Plugin.active)
             {
-                switch (ev.Door.Name)
-                {
-                    case "CHECKPOINT_ENT":
-                        ev.Allow = false;
-                        ev.Destroy = false;
-                        break;
+				if (isRoundStarted)
+				{
+					switch (ev.Door.Name)
+					{
+						case "CHECKPOINT_ENT":
+							ev.Allow = false;
+							ev.Destroy = false;
+							break;
 
-                    case "HCZ_ARMORY":
-                        if ((escapeReady || (escapeReady = Generator079.generators.All(x => x.remainingPowerup <= 0))) && //if escape is known to be ready, and if not check if it is
-                            ev.Player.TeamRole.Role == Role.SCIENTIST)
-                        {
-                            ev.Player.SetRank("silver", "ESCAPED");
+						case "HCZ_ARMORY":
+							if ((escapeReady || (escapeReady = Generator079.generators.All(x => x.remainingPowerup <= 0))) && //if escape is known to be ready, and if not check if it is
+								ev.Player.TeamRole.Role == Role.SCIENTIST)
+							{
+								ev.Player.SetRank("silver", "ESCAPED");
 
-                            foreach (Smod2.API.Item item in ev.Player.GetInventory()) //drop items before converting
-                            {
-                                item.Drop();
-                            }
-                            ev.Player.ChangeRole(Role.NTF_SCIENTIST, false, false, false); //convert empty, ready to give items
+								foreach (Smod2.API.Item item in ev.Player.GetInventory()) //drop items before converting
+								{
+									item.Drop();
+								}
 
-                            PluginManager.Manager.Server.Round.Stats.ScientistsEscaped++;
-                        }
-                        goto case "CHECKPOINT_ENT";
-                }
+								ev.Player.ChangeRole(Role.NTF_SCIENTIST, false, false, false); //convert empty, ready to give items
+
+								foreach (Smod2.API.Item item in ev.Player.GetInventory()) //drop items before converting
+								{
+									item.Remove();
+								}
+
+								ev.Player.GiveItem(ItemType.E11_STANDARD_RIFLE);
+								ev.Player.GiveItem(ItemType.RADIO);
+								ev.Player.GiveItem(ItemType.FRAG_GRENADE);
+
+								Inventory inv = ((GameObject)ev.Player.GetGameObject()).GetComponent<Inventory>();
+
+
+								// todo: edit attatchments to put a flashlight mod on rifle, add grenade launcher, turn off ff
+
+								PluginManager.Manager.Server.Round.Stats.ScientistsEscaped++;
+							}
+							goto case "CHECKPOINT_ENT";
+					}
+				}
+				else
+				{
+					ev.Door.Open = false;
+				}
             }
         }
 
@@ -330,5 +379,11 @@ namespace Blackout
                 }
             }
         }
+
+		public void OnCheckRoundEnd(CheckRoundEndEvent ev)
+		{
+			if (!isRoundStarted)
+				ev.Status = ROUND_END_STATUS.ON_GOING;
+		}
     }
 }
