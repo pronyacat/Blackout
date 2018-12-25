@@ -33,11 +33,15 @@ namespace Blackout
         #region Config
         public bool giveFlashlights;
 		public bool giveFlashbangs;
+
         public float percentLarrys;
-        public int maxTime;
+
+        public float startDelay;
+        public float maxTime;
         public float respawnTime;
         public float uspTime;
-        public float startDelay;
+        public int[] minuteAnnouncements;
+
         public bool teslaFlicker;
         #endregion
 
@@ -52,12 +56,16 @@ namespace Blackout
 
 			giveFlashlights = Plugin.instance.GetConfigBool("bo_flashlights");
 			giveFlashbangs = Plugin.instance.GetConfigBool("bo_flashbangs");
+
 			percentLarrys = Plugin.instance.GetConfigFloat("bo_slendy_percent");
-			maxTime = Plugin.instance.GetConfigInt("bo_max_time");
-			respawnTime = Plugin.instance.GetConfigInt("bo_respawn_time");
+
+		    startDelay = Plugin.instance.GetConfigFloat("bo_start_delay");
+            maxTime = Plugin.instance.GetConfigFloat("bo_max_time");
+			respawnTime = Plugin.instance.GetConfigFloat("bo_respawn_time");
 			uspTime = Plugin.instance.GetConfigFloat("bo_usp_time");
-			startDelay = Plugin.instance.GetConfigFloat("bo_start_delay");
-		    teslaFlicker = Plugin.instance.GetConfigBool("bo_tesla_flicker");
+		    minuteAnnouncements = Plugin.instance.GetConfigIntList("bo_announce_times");
+
+            teslaFlicker = Plugin.instance.GetConfigBool("bo_tesla_flicker");
 		}
 
         public void OnRoundStart(RoundStartEvent ev)
@@ -206,7 +214,10 @@ namespace Blackout
                 {
                     TenSecondBlackoutLoop(y);
                     RefreshGeneratorsLoop(y);
-                    timers.Add(Timing.In(z => AnnounceTimeLoops(maxTime - 1, z), 60)); // Time announcements and nuke end
+
+                    int maxTimeMinutes = Mathf.FloorToInt(maxTime / 60);
+                    float remainder = maxTime - maxTimeMinutes * 60;
+                    timers.Add(Timing.In(z => AnnounceTimeLoops(maxTimeMinutes - 1, z), remainder)); // Time announcements and nuke end
 
                     timers.Add(Timing.In(z => // Change role and teleport players
                     {
@@ -288,11 +299,20 @@ namespace Blackout
 
         private void AnnounceTimeLoops(int minutes, float inaccuracy = 0)
         {
-            string cassieLine = $"{minutes} MINUTE{(minutes == 1 ? "" : "S")} REMAINING";
+            if (minutes == 0)
+            {
+                return;
+            }
+
+            string cassieLine = minuteAnnouncements.Contains(minutes) ? $"{minutes} MINUTE{(minutes == 1 ? "" : "S")} REMAINING" : "";
 
             if (minutes == 1)
             {
-                cassieLine += " . ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED";
+                if (!string.IsNullOrWhiteSpace(cassieLine))
+                {
+                    cassieLine += " . ";
+                }
+                cassieLine += "ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED";
                 const float cassieDelay = 9f;
 
                 timers.Add(Timing.In(x =>
@@ -306,7 +326,10 @@ namespace Blackout
                 timers.Add(Timing.In(x => AnnounceTimeLoops(--minutes, x), 60 + inaccuracy));
             }
 
-            cassie.CallRpcPlayCustomAnnouncement(cassieLine, false);
+            if (!string.IsNullOrWhiteSpace(cassieLine))
+            {
+                cassie.CallRpcPlayCustomAnnouncement(cassieLine, false);
+            }
         }
 
         private string GetGeneratorName(string rootName)
