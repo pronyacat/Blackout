@@ -7,16 +7,16 @@ using Smod2.EventHandlers;
 using Smod2.Events;
 using Smod2.EventSystem.Events;
 using UnityEngine;
+using Item = Smod2.API.Item;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 namespace Blackout
 {
     public class EventHandlers : IEventHandlerRoundStart, IEventHandlerDoorAccess, IEventHandlerTeamRespawn,
-        IEventHandlerCheckRoundEnd, IEventHandlerPlayerHurt, IEventHandlerSummonVehicle,
-        IEventHandlerWarheadStopCountdown, IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla,
-        IEventHandlerDisconnect, IEventHandlerPlayerDie, IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown,
-        IEventHandlerRecallZombie
+        IEventHandlerPlayerHurt, IEventHandlerSummonVehicle, IEventHandlerWarheadStopCountdown, 
+        IEventHandlerRoundRestart, IEventHandlerPlayerTriggerTesla, IEventHandlerDisconnect, IEventHandlerPlayerDie, 
+        IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown
     {
         private static int curRound;
         private bool escapeReady;
@@ -97,7 +97,6 @@ namespace Blackout
 
                     player.Teleport(ev.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
                 }
-                Plugin.players = possibleSlendies.Count;
 
                 if (Plugin.giveFlashlights)
                 {
@@ -242,21 +241,11 @@ namespace Blackout
                         {
                             ev.Player.SetRank("silver", "ESCAPED");
 
-                            if (Plugin.escaped++ == 0) //first escapee
+                            foreach (Smod2.API.Item item in ev.Player.GetInventory()) //drop items before converting
                             {
-                                if (AlphaWarheadController.host.inProgress)
-                                {
-                                    AlphaWarheadController.host.NetworktimeToDetonation = 60f;
-                                    AlphaWarheadController.host.StartDetonation();
-                                }
-
-                                broadcast.RpcAddElement($"The first of {Plugin.players} scientist has escaped.", 5, false);
+                                item.Drop();
                             }
-                            else
-                            {
-                                ev.Player.ChangeRole(Role.SPECTATOR);
-                                broadcast.RpcAddElement($"Another ({Plugin.escaped}/{Plugin.players}) scientist has escaped.", 5, false);
-                            }
+                            ev.Player.ChangeRole(Role.NTF_SCIENTIST, false, false, false); //convert empty, ready to give items
 
                             PluginManager.Manager.Server.Round.Stats.ScientistsEscaped++;
                         }
@@ -271,25 +260,6 @@ namespace Blackout
             {
                 ev.SpawnChaos = true;
                 ev.PlayerList.Clear();
-            }
-        }
-
-        public void OnCheckRoundEnd(CheckRoundEndEvent ev)
-        {
-            if (Plugin.active && !Plugin.roundLock)
-            {
-                if (Plugin.escaped >= Plugin.players)
-                {
-                    ev.Status = ROUND_END_STATUS.MTF_VICTORY;
-                }
-                else if (ev.Server.GetPlayers().Count(x => x.TeamRole.Role != Role.SPECTATOR) == 0)
-                {
-                    ev.Status = ROUND_END_STATUS.OTHER_VICTORY;
-                }
-                else if (Plugin.players == 0)
-                {
-                    ev.Status = ROUND_END_STATUS.SCP_VICTORY;
-                }
             }
         }
 
@@ -350,15 +320,12 @@ namespace Blackout
         {
             if (Plugin.active && ev.Player.TeamRole.Role == Role.SCIENTIST)
             {
-                Plugin.players--;
-                
                 Timing.In(inaccuracy =>
                 {
                     if (Plugin.active && Plugin.respawnActive)
                     {
                         ev.Player.ChangeRole(Role.SCIENTIST, false, false, false);
                         ev.Player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
-                        Plugin.players++;
                     }
                 }, Plugin.respawnTime);
             }
@@ -383,14 +350,6 @@ namespace Blackout
             if (Plugin.active)
             {
                 ev.OpenDoorsAfter = false;
-            }
-        }
-
-        public void OnRecallZombie(PlayerRecallZombieEvent ev)
-        {
-            if (Plugin.active)
-            {
-                Timing.Next(() => ev.Target.SetHealth(1, DamageType.NONE));
             }
         }
     }

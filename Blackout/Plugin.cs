@@ -24,8 +24,6 @@ namespace Blackout
         public static bool activeNextRound;
 
         public static bool roundLock;
-        public static int players;
-        public static int escaped;
 
         public static string[] validRanks;
         public static bool giveFlashlights;
