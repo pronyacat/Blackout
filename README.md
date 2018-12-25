@@ -33,6 +33,7 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 | bo_flashbangs | Boolean | True | If everyone should get a flashbang on spawn. All flashbangs are removed when the lights go out. |
 | bo_slendy_percent | Float | 0.1 | Percentage of players that should be slendies (SCP-049). |
 | bo_max_time | Float | 600 | Time in seconds before the round ends. |
+| bo_slendy_delay | Float | 15 | Time in seconds before the slendies (SCP-049) are released. |
 | bo_respawn_time | Float | 15 | Time in seconds before a dead scientist respawns with nothing in 049 (if respawn is enabled via command). |
 | bo_usp_time | Float | 300 | Time in seconds before a USP spawns in nuke armory. |
 | bo_start_delay | Float | 30 | Time in seconds until the round starts. |
