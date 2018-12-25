@@ -17,7 +17,7 @@ namespace Blackout
         IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
         IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
         IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, IEventHandlerElevatorUse,
-        IEventHandlerWarheadStartCountdown
+        IEventHandlerWarheadStartCountdown, IEventHandlerSetRole
     {
         private readonly List<int> timers;
 
@@ -162,12 +162,11 @@ namespace Blackout
 		    // Set every class to scientist
 		    foreach (Player player in players)
 		    {
-				player.ChangeRole(Role.SCIENTIST, false, false);
+				SpawnScientist(player, false);
 				foreach (Smod2.API.Item item in player.GetInventory())
 					item.Remove();
 				if (giveFlashbangs)
-					player.GiveItem(ItemType.FLASHBANG);
-				player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+					player.GiveItem(ItemType.FLASHBANG);	
 			}
 
 		    // Set 049 spawn points
@@ -239,6 +238,14 @@ namespace Blackout
                 }, cassieDelay + x)); // 8.6 IS VERY SPECIFIC. DO NOT CHANGE, MAY CAUSE BLACKOUT TO BE UNCOORDINATED WITH CASSIE
             }, startDelay - (cassieDelay + flickerDelay))); // Cassie and flicker delay is subtracted in order to start the round by that time
         }
+
+		private void SpawnScientist(Player player, bool initInv = true)
+		{
+			player.ChangeRole(Role.SCIENTIST);
+			player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+			if (initInv)
+				ScientistInitInv(player);
+		}
 
 		private void ScientistInitInv(Player player)
 		{
@@ -416,6 +423,14 @@ namespace Blackout
 				}
             }
         }
+
+		public void OnSetRole(PlayerSetRoleEvent ev)
+		{
+			if (Plugin.active && ev.Player.TeamRole.Role == Role.SCIENTIST)
+			{
+				SpawnScientist(ev.Player);
+			}
+		}
 
         public void OnTeamRespawn(TeamRespawnEvent ev)
         {
