@@ -16,7 +16,8 @@ namespace Blackout
     public class EventHandlers : IEventHandlerWaitingForPlayers, IEventHandlerRoundStart, 
         IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
         IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
-        IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, IEventHandlerElevatorUse
+        IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, IEventHandlerElevatorUse,
+        IEventHandlerWarheadStartCountdown
     {
         private readonly List<int> timers;
 
@@ -321,6 +322,9 @@ namespace Blackout
 
             switch (rootName)
             {
+                case "457":
+                    return "096";
+
                 case "ROOM3AR":
                     return "ARMORY";
 
@@ -432,7 +436,7 @@ namespace Blackout
         // Teslas not activated if PRANK MOED is on
         public void OnPlayerTriggerTesla(PlayerTriggerTeslaEvent ev)
         {
-            if (teslaFlicker)
+            if (Plugin.active && teslaFlicker)
             {
                 ev.Triggerable = false;
             }
@@ -472,5 +476,13 @@ namespace Blackout
 			if (!isRoundStarted && Plugin.active)
 				ev.Status = ROUND_END_STATUS.ON_GOING;
 		}
+
+        public void OnStartCountdown(WarheadStartEvent ev)
+        {
+            if (Plugin.active)
+            {
+                ev.OpenDoorsAfter = false;
+            }
+        }
     }
 }
