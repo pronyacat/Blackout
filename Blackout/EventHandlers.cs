@@ -198,8 +198,8 @@ namespace Blackout
                 player.SendConsoleMessage("\nWelcome to Blackout!\n" +
                                           "In Blackout, you're either a scientist or 049. All the lights will turn off and exits have been locked. " +
                                           "The only way to get out is by activating all the 079 generators, then going to the Heavy Containment Zone armory (that 3 way intersection with the chasm beneath it). " +
-                                          "Commander keycards will spawn in 096 (like usual) and nuke. When you escape, you will be given weapons to go kill all SCP-049s. " +
-										  "Eliminate all of them before time runs out.");
+                                          "Commander keycards will spawn in 096 (like usual) and nuke. When you escape, you will be given weapons to kill all 049s. " +
+										  "Eliminate all of them before the nuke detonates for a scientist win.");
             }
 
             const float cassieDelay = 8.6f;
