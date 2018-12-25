@@ -38,7 +38,7 @@ namespace Blackout
                             {
                                 $"Toggled blackout {(Plugin.activeNextRound ? "on" : "off")} for next round."
                             };
-
+w
                         case "respawn":
                             Plugin.respawnActive = !Plugin.respawnActive;
 
@@ -56,6 +56,13 @@ namespace Blackout
                             };
                     }
                 }
+            }
+            else
+            {
+                return new[]
+                {
+                    "Invalid command."
+                };
             }
 
             return new[]
