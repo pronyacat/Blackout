@@ -22,6 +22,8 @@ namespace Blackout
             "Commander keycards will spawn in 096 (like usual) and nuke. When you escape, you will be given weapons to kill all 049s. " +
             "Eliminate all of them before the nuke detonates for a scientist win.";
 
+        private const float Cassie049BreachDelay = 9f;
+
         private bool isRoundStarted;
         private bool escapeReady;
 
@@ -77,8 +79,8 @@ namespace Blackout
 
             foreach (Player player in randomizedPlayers.scientists)
                 GiveGamemodeItems(player);
-
-            Timing.In(x => FreeSlendies(slendySpawns), slendyDelay);
+            
+            Timing.In(x => FreeSlendies(slendySpawns), slendyDelay - Cassie049BreachDelay);
 
             Timing.InTicks(() => // Unlock round
             {
@@ -214,10 +216,13 @@ namespace Blackout
         /// <param name="slendies">Slendies and their corresponding spawn points.</param>
         private void FreeSlendies(Dictionary<Player, Vector> slendies)
         {
-            foreach (KeyValuePair<Player, Vector> slendy in slendies)
-                slendy.Key.Teleport(slendy.Value);
+            cassie.CallRpcPlayCustomAnnouncement("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN 3 . 2 . 1", false);
 
-            cassie.CallRpcPlayCustomAnnouncement("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS", false);
+            Timing.In(x =>
+            {
+                foreach (KeyValuePair<Player, Vector> slendy in slendies)
+                    slendy.Key.Teleport(slendy.Value);
+            }, Cassie049BreachDelay);
         }
 
         /// <summary>
