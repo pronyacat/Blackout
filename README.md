@@ -21,7 +21,7 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 
 | Command        | Description |
 | :-------------: | :------ |
-| BLACKOUT | Enabled Blackout for the next round only. |
+| BLACKOUT | Enables Blackout for the next round only. |
 | BLACKOUT TOGGLE | Toggles Blackout on or off. |
 
 # Configs
