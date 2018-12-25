@@ -184,13 +184,14 @@ namespace Blackout
             teslas = ev.Server.Map.GetTeslaGates();
 
             // Inform players
-            broadcast.CallRpcAddElement("This is Blackout, a custom gamemode. If you have never played it, please press [`] or [~] for more info.", 10, false);
+            broadcast.CallRpcAddElement("This is Blackout, a custom gamemode. If you have never played it, press [`] or [~] for more info.", 10, false);
             foreach (Player player in players)
             {
                 player.SendConsoleMessage("\nWelcome to Blackout!\n" +
-                                          "In Blackout, you're either a scientist or 049. All the lights will turn off and exits have been locked.\n" +
-                                          "The only way to get out is by activating all the 079 generators, then going to the Heavy Containment Zone armory (that 3 way intersection with the chasm beneath it).\n" +
-                                          "Commander keycards will spawn in 096 (like usual) and nuke.");
+                                          "In Blackout, you're either a scientist or 049. All the lights will turn off and exits have been locked. " +
+                                          "The only way to get out is by activating all the 079 generators, then going to the Heavy Containment Zone armory (that 3 way intersection with the chasm beneath it). " +
+                                          "Commander keycards will spawn in 096 (like usual) and nuke. When you escape, you will be given weapons to go kill all SCP-049s. " +
+										  "Eliminate all of them before time runs out.");
             }
 
             const float cassieDelay = 8.6f;
@@ -209,11 +210,11 @@ namespace Blackout
                     timers.Add(Timing.In(z => // Change role and teleport players
                     {
                         // Spawn 049s
-                       // for (int i = 0; i < slendies.Length; i++)
-                        //{
-                        //    slendies[i].Teleport(spawnPoints[i]);
-                        //    slendies[i].ChangeRole(Role.SCP_049, false, false);
-                        //}
+                        for (int i = 0; i < slendies.Length; i++)
+                        {
+                            slendies[i].Teleport(spawnPoints[i]);
+                            slendies[i].ChangeRole(Role.SCP_049, false, false);
+                        }
 
 						foreach (Player player in possibleSlendies)
 							ScientistInitInv(player);
@@ -226,11 +227,6 @@ namespace Blackout
                 }, cassieDelay + x)); // 8.6 IS VERY SPECIFIC. DO NOT CHANGE, MAY CAUSE BLACKOUT TO BE UNCOORDINATED WITH CASSIE
             }, startDelay - (cassieDelay + flickerDelay))); // Cassie and flicker delay is subtracted in order to start the round by that time
         }
-
-		private void SpawnScientist(Player player)
-		{
-
-		}
 
 		private void ScientistInitInv(Player player)
 		{
@@ -332,8 +328,10 @@ namespace Blackout
 
 					if (generatorWord.ToUpper() == "ROOM3AR") // This one has such a weird name i had to add this for it, remove this if you think of a better way to do this
 						generatorWord = "ARMORY";
+					if (generatorWord.ToUpper() == "TESTROOM") // This one too
+						generatorWord = "939";
 
-                    broadcast.CallRpcAddElement($"Generator {generatorWord.ToUpper()} powering up...", 5, false);
+					broadcast.CallRpcAddElement($"Generator {generatorWord.ToUpper()} powering up...", 5, false);
                 }
 
                 activeGenerators = newActiveGenerators;
