@@ -166,10 +166,7 @@ namespace Blackout
 		    foreach (Player player in players)
 		    {
 				SpawnScientist(player, false, false);
-				foreach (Smod2.API.Item item in player.GetInventory())
-					item.Remove();
-				if (giveFlashbangs)
-					player.GiveItem(ItemType.FLASHBANG);	
+				GiveWaitingItems(player);
 			}
 
 		    // Set 049 spawn points
@@ -256,8 +253,13 @@ namespace Blackout
 
 			player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
 
-			if (initInv)
-				ScientistInitInv(player);
+			timers.Add(Timing.InTicks(() =>
+			{
+				if (!isRoundStarted)
+					GiveWaitingItems(player);
+				else if (initInv)
+					ScientistInitInv(player);
+			}, 4));
 		}
 
 		private void ScientistInitInv(Player player)
@@ -271,6 +273,14 @@ namespace Blackout
 
 			if (giveFlashlights)
 				player.GiveItem(ItemType.FLASHLIGHT);
+		}
+
+		private void GiveWaitingItems(Player player)
+		{
+			foreach (Smod2.API.Item item in player.GetInventory())
+				item.Remove();
+			if (giveFlashbangs)
+				player.GiveItem(ItemType.FLASHBANG);
 		}
 
         private void EscapeScientist(Player player)
