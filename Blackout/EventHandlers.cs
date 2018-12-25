@@ -16,8 +16,8 @@ namespace Blackout
     public class EventHandlers : IEventHandlerWaitingForPlayers, IEventHandlerRoundStart, 
         IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
         IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
-        IEventHandlerPlayerTriggerTesla, IEventHandlerPlayerDie, IEventHandlerElevatorUse,
-        IEventHandlerWarheadStartCountdown, IEventHandlerSetRole
+        IEventHandlerPlayerTriggerTesla, IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown,
+		IEventHandlerSetRole
     {
         private readonly List<int> timers;
 
@@ -39,7 +39,6 @@ namespace Blackout
         public float startDelay;
 		public float slendyDelay;
         public float maxTime;
-        public float respawnTime;
         public float uspTime;
         public int[] minuteAnnouncements;
 
@@ -63,7 +62,6 @@ namespace Blackout
 		    startDelay = Plugin.instance.GetConfigFloat("bo_start_delay");
 			slendyDelay = Plugin.instance.GetConfigFloat("bo_slendy_delay");
             maxTime = Plugin.instance.GetConfigFloat("bo_max_time");
-			respawnTime = Plugin.instance.GetConfigFloat("bo_respawn_time");
 			uspTime = Plugin.instance.GetConfigFloat("bo_usp_time");
 		    minuteAnnouncements = Plugin.instance.GetConfigIntList("bo_announce_times");
 
@@ -475,7 +473,6 @@ namespace Blackout
         public void OnRoundRestart(RoundRestartEvent ev)
         {
 			Plugin.active = false;
-            Plugin.respawnActive = false;
 
             // Prevent timers from rolling into next round
             foreach (int timer in timers)
@@ -490,19 +487,6 @@ namespace Blackout
             if (Plugin.active && teslaFlicker)
             {
                 ev.Triggerable = false;
-            }
-        }
-
-        // Respawn handling if set true
-        public void OnPlayerDie(PlayerDeathEvent ev)
-        {
-            if (Plugin.active && Plugin.respawnActive && ev.Player.TeamRole.Role == Role.SCIENTIST)
-            {
-                timers.Add(Timing.In(x =>
-                {
-                    ev.Player.ChangeRole(Role.SCIENTIST, false, false, false);
-                    ev.Player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
-                }, respawnTime));
             }
         }
 

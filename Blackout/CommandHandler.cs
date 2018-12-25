@@ -31,22 +31,6 @@ namespace Blackout
 							{
 								$"Blackout has been toggled {(Plugin.toggled ? "on" : "off")}."
 							};
-
-						case "respawn":
-							Plugin.respawnActive = !Plugin.respawnActive;
-
-							if (!Plugin.active)
-							{
-								return new[]
-								{
-                                    $"Blackout isn't even running, but respawn is toggle {(Plugin.respawnActive ? "on" : "off")} if you say so."
-                                };
-							}
-
-							return new[]
-							{
-								$"Toggled Blackout respawn {(Plugin.respawnActive ? "on" : "off")}. It will reset to off next round."
-							};
 					}
 				}
 				else
