@@ -15,30 +15,39 @@ namespace scp4aiur
     /// <summary>
     /// Module for easy and efficient frame-based timers
     /// </summary>
-    internal class Timing : IEventHandlerUpdate
+    internal class Timing : IEventHandlerUpdate, IEventHandlerRoundRestart
     {
         private static Action<string> log;
-
+        
         private static int jobId;
+
         private static Dictionary<int, QueueItem> jobs;
+        private static List<int> roundJobs;
 
         public static void Init(Smod2.Plugin plugin, Priority priority = Priority.Normal)
         {
             log = plugin.Info;
             plugin.AddEventHandlers(new Timing(), priority);
-
+            
             jobId = int.MinValue;
+
             jobs = new Dictionary<int, QueueItem>();
+            roundJobs = new List<int>();
         }
 
         /// <summary>
         /// Queues a job.
         /// </summary>
         /// <param name="item">Job to queue.</param>
-        private static int Queue(QueueItem item)
+        /// <param name="persistThroughRound"></param>
+        private static int Queue(QueueItem item, bool persistThroughRound)
         {
             int id = jobId++;
             jobs.Add(id, item);
+            if (!persistThroughRound)
+            {
+                roundJobs.Add(id);
+            }
 
             return id;
         }
@@ -47,9 +56,32 @@ namespace scp4aiur
         /// Queues a job for the next tick.
         /// </summary>
         /// <param name="action">Job to execute.</param>
-        public static int Next(Action action)
+        /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
+        public static int Next(Action action, bool persistThroughRound = false)
         {
-            return Queue(new NextTickQueue(action));
+            return Queue(new NextTickQueue(action), persistThroughRound);
+        }
+
+        /// <summary>
+        /// Queues a job to run in a certain amount of ticks.
+        /// </summary>
+        /// <param name="action">Job to execute.</param>
+        /// <param name="ticks">Number of ticks to wait.</param>
+        /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
+        public static int InTicks(Action action, int ticks, bool persistThroughRound = false)
+        {
+            return Queue(new AfterTicksQueue(action, ticks), persistThroughRound);
+        }
+
+        /// <summary>
+        /// Queues a job to run in a certain amount of seconds
+        /// </summary>
+        /// <param name="action">Job to execute.</param>
+        /// <param name="seconds">Number of seconds to wait.</param>
+        /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
+        public static int In(Action<float> action, float seconds, bool persistThroughRound = false)
+        {
+            return Queue(new TimerQueue(action, seconds), persistThroughRound);
         }
 
         /// <summary>
@@ -59,26 +91,6 @@ namespace scp4aiur
         public static bool Remove(int id)
         {
             return jobs.Remove(id);
-        }
-
-        /// <summary>
-        /// Queues a job to run in a certain amount of ticks.
-        /// </summary>
-        /// <param name="action">Job to execute.</param>
-        /// <param name="ticks">Number of ticks to wait.</param>
-        public static int InTicks(Action action, int ticks)
-        {
-            return Queue(new AfterTicksQueue(action, ticks));
-        }
-
-        /// <summary>
-        /// Queues a job to run in a certain amount of seconds
-        /// </summary>
-        /// <param name="action">Job to execute.</param>
-        /// <param name="seconds">Number of seconds to wait.</param>
-        public static int In(Action<float> action, float seconds)
-        {
-            return Queue(new TimerQueue(action, seconds));
         }
 
         /// <summary>
@@ -92,6 +104,19 @@ namespace scp4aiur
             {
                 job.Value.Run();
                 jobs.Remove(job.Key);
+            }
+        }
+
+        /// <summary>
+        /// <para>DO NOT USE</para>
+        /// <para>This is an event for Smod2 and as such should not be called by any external code </para>
+        /// </summary>
+        /// <param name="ev"></param>
+        public void OnRoundRestart(RoundRestartEvent ev)
+        {
+            foreach (int job in roundJobs)
+            {
+                Remove(job);
             }
         }
 

@@ -1,7 +1,7 @@
-﻿using System.Linq;
-using Smod2;
-using Smod2.API;
+﻿using Smod2.API;
 using Smod2.Commands;
+
+using System.Linq;
 
 namespace Blackout
 {
@@ -35,7 +35,7 @@ namespace Blackout
 				}
 				else
 				{
-					if (!Plugin.toggled)
+				    if (!Plugin.toggled)
 					{
 						Plugin.activeNextRound = !Plugin.activeNextRound;
 						return new[]
@@ -43,13 +43,11 @@ namespace Blackout
 							$"Blackout has been {(Plugin.activeNextRound ? "enabled" : "disabled")} for next round."
 						};
 					}
-					else
-					{
-						return new string[]
-						{
-							$"Blackout is already toggled on."
-						};
-					}
+
+				    return new[]
+				    {
+				        "Blackout is already toggled on."
+				    };
 				}
 			}
 

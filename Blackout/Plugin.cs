@@ -2,6 +2,7 @@
 using Smod2.API;
 using Smod2.Attributes;
 using Smod2.Config;
+using Smod2.Events;
 
 namespace Blackout
 {
@@ -45,7 +46,7 @@ namespace Blackout
 			AddConfig(new ConfigSetting("bo_flashlights", true, SettingType.BOOL, true, "If everyone should get a flashlight when the lights go out."));
 			AddConfig(new ConfigSetting("bo_flashbangs", true, SettingType.BOOL, true, "If everyone should get a flashbang on spawn. All flashbangs are removed when the lights go out."));
 
-			AddConfig(new ConfigSetting("bo_slendy_percent", 0.1f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
+			AddConfig(new ConfigSetting("bo_slendy_percent", 0.15f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
 
             AddConfig(new ConfigSetting("bo_start_delay", 30f, SettingType.FLOAT, true, "Time until the round starts."));
 			AddConfig(new ConfigSetting("bo_slendy_delay", 15f, SettingType.FLOAT, true, "Time until slendies are released"));
@@ -61,7 +62,11 @@ namespace Blackout
 
             AddConfig(new ConfigSetting("bo_tesla_flicker", true, SettingType.BOOL, true, "If teslas should activate on light flicker."));
 
-            AddEventHandlers(new EventHandlers());
+            AddEventHandlers(new EventHandlers(), Priority.High); 
+            // LASER HIGH PRIORITY IS NECESSARY
+            // Say Serpents Hand was going to spawn in and it got ran before ours. Bam. Now people are serpents hand and hold up the round.
+            // Say someone has a door bypass plugin. Bam. Someones out of heavy containment.
+            // PLEASE DO NOT ANGRYLASERBOI US
 
             AddCommand("blackout", new CommandHandler());
         }
