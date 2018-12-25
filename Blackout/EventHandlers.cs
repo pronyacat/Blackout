@@ -37,6 +37,7 @@ namespace Blackout
         public float percentLarrys;
 
         public float startDelay;
+		public float slendyDelay;
         public float maxTime;
         public float respawnTime;
         public float uspTime;
@@ -60,6 +61,7 @@ namespace Blackout
 			percentLarrys = Plugin.instance.GetConfigFloat("bo_slendy_percent");
 
 		    startDelay = Plugin.instance.GetConfigFloat("bo_start_delay");
+			slendyDelay = Plugin.instance.GetConfigFloat("bo_slendy_delay");
             maxTime = Plugin.instance.GetConfigFloat("bo_max_time");
 			respawnTime = Plugin.instance.GetConfigFloat("bo_respawn_time");
 			uspTime = Plugin.instance.GetConfigFloat("bo_usp_time");
@@ -98,7 +100,10 @@ namespace Blackout
                         {
                             elevator.Use();
                         }
-                        break;
+						break;
+					case ElevatorType.SCP049Chamber when elevator.ElevatorStatus == ElevatorStatus.Up:
+						elevator.Use();
+						break;
                 }
             }
 
@@ -223,12 +228,19 @@ namespace Blackout
                         // Spawn 049s
                         for (int i = 0; i < slendies.Length; i++)
                         {
-                            slendies[i].Teleport(spawnPoints[i]);
                             slendies[i].ChangeRole(Role.SCP_049, false, false);
+							slendies[i].Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
                         }
 
 						foreach (Player player in possibleSlendies)
 							ScientistInitInv(player);
+
+						timers.Add(Timing.In(a =>
+						{
+							for (int i = 0; i < slendies.Length; i++)
+								slendies[i].Teleport(spawnPoints[i]);
+							cassie.CallRpcPlayCustomAnnouncement("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS", false);
+						}, slendyDelay));
 
                         timers.Add(Timing.InTicks(() => // Unlock round
                         {

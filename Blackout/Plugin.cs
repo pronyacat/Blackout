@@ -49,6 +49,7 @@ namespace Blackout
 			AddConfig(new ConfigSetting("bo_slendy_percent", 0.1f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
 
             AddConfig(new ConfigSetting("bo_start_delay", 30f, SettingType.FLOAT, true, "Time until the round starts."));
+			AddConfig(new ConfigSetting("bo_slendy_delay", 15f, SettingType.FLOAT, true, "Time until slendies are released"));
             AddConfig(new ConfigSetting("bo_max_time", 600f, SettingType.FLOAT, true, "Time before the round ends"));
             AddConfig(new ConfigSetting("bo_respawn_time", 15f, SettingType.FLOAT, true, "Time before a dead scientist respawns with nothing in 049 (if respawn is enabled via command)."));
 			AddConfig(new ConfigSetting("bo_usp_time", 300f, SettingType.FLOAT, true, "Time until a USP spawns in nuke armory."));
