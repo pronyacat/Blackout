@@ -38,6 +38,6 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 | bo_max_time | Float | 720 | Time in seconds before the round ends. |
 | bo_usp_time | Float | 300 | Time in seconds before a USP spawns in nuke armory. |
 | bo_generator_refresh | Float | 1 | Refresh rate of generator resuming and broadcasts. |
-| bo_announce_times | Integer List | 7,4,2,1 | Minute times for CASSIE to announce how many minutes are remaining. |
+| bo_announce_times | Integer List | 10, 7,4,2,1 | Minute times for CASSIE to announce how many minutes are remaining. |
 | bo_tesla_flicker | Boolean | True | If teslas should activate on light flicker. |
 | bo_multithreaded | Boolean | True | If multithreading should be enabled. This may cause crashes on Linux, disable if so. Refreshed on server restart. |
