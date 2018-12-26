@@ -23,14 +23,14 @@ namespace scp4aiur
         private static object jobAccess;
         private static int jobId;
         private static Dictionary<int, QueueItem> jobs;
-        
+
         private static List<int> roundJobs;
 
         public static void Init(Smod2.Plugin plugin, Priority priority = Priority.Normal, bool threaded = true)
         {
             multiThreaded = threaded;
             log = plugin.Info;
-            
+
             jobAccess = new object();
             jobId = int.MinValue;
 
@@ -145,7 +145,7 @@ namespace scp4aiur
             private readonly Action runAction;
 
             protected Action action;
-            
+
             public Exception Exception { get; protected set; }
 
             protected QueueItem(string jobName, bool multiThreaded)
@@ -200,7 +200,7 @@ namespace scp4aiur
         {
             private int ticksLeft;
 
-            public AfterTicksQueue(Action jobAction, int ticks, bool threaded) : base("after-ticks", true)
+            public AfterTicksQueue(Action jobAction, int ticks, bool threaded) : base("after-ticks", threaded)
             {
                 action = jobAction;
                 ticksLeft = ticks;
@@ -216,7 +216,7 @@ namespace scp4aiur
         {
             private float timeLeft;
 
-            public TimerQueue(Action<float> jobAction, float time, bool threaded) : base("timer", true)
+            public TimerQueue(Action<float> jobAction, float time, bool threaded) : base("timer", threaded)
             {
                 action = () => jobAction(timeLeft);
                 timeLeft = time;
