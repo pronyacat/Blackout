@@ -31,11 +31,13 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 | bo_ranks | String List |  | Ranks allowed to run the `BLACKOUT` command. |
 | bo_flashlights | Boolean | True | If scientists should get a flashlight when the lights go out. |
 | bo_flashbangs | Boolean | True | If everyone should get a flashbang on spawn. All flashbangs are removed when the lights go out. |
-| bo_slendy_percent | Float | 0.1 | Percentage of players that should be slendies (SCP-049). |
-| bo_max_time | Float | 600 | Time in seconds before the round ends. |
-| bo_slendy_delay | Float | 15 | Time in seconds before the slendies (SCP-049) are released. |
-| bo_respawn_time | Float | 15 | Time in seconds before a dead scientist respawns with nothing in 049 (if respawn is enabled via command). |
-| bo_usp_time | Float | 300 | Time in seconds before a USP spawns in nuke armory. |
+| bo_slendy_percent | Float | 0.15 | Percentage of players that should be slendies (SCP-049). |
 | bo_start_delay | Float | 30 | Time in seconds until the round starts. |
-| bo_tesla_flicker | Boolean | True | If teslas should activate on light flicker. |
+| bo_slendy_delay | Float | 30 | Time in seconds until 049s are released. |
+| bo_slendy_delay | Float | 30 | Time in seconds before the slendies (SCP-049) are released. |
+| bo_max_time | Float | 720 | Time in seconds before the round ends. |
+| bo_usp_time | Float | 300 | Time in seconds before a USP spawns in nuke armory. |
+| bo_generator_refresh | Float | 1 | Refresh rate of generator resuming and broadcasts. |
 | bo_announce_times | Integer List | 7,4,2,1 | Minute times for CASSIE to announce how many minutes are remaining. |
+| bo_tesla_flicker | Boolean | True | If teslas should activate on light flicker. |
+| bo_multithreaded | Boolean | True | If multithreading should be enabled. This may cause crashes on Linux, disable if so. Refreshed on server restart. |
