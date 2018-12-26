@@ -27,6 +27,8 @@ namespace Blackout
 		public float slendyDelay;
         public float maxTime;
         public float uspTime;
+        public float generatorRefreshRate;
+        public float flickerlightDuration;
         public int[] minuteAnnouncements;
 
         public bool teslaFlicker;
@@ -49,7 +51,9 @@ namespace Blackout
 			slendyDelay = Plugin.instance.GetConfigFloat("bo_slendy_delay");
             maxTime = Plugin.instance.GetConfigFloat("bo_max_time");
 			uspTime = Plugin.instance.GetConfigFloat("bo_usp_time");
-		    minuteAnnouncements = Plugin.instance.GetConfigIntList("bo_announce_times");
+		    generatorRefreshRate = Plugin.instance.GetConfigFloat("bo_generator_refresh");
+		    flickerlightDuration = Plugin.instance.GetConfigFloat("bo_flickerlight_duration");
+            minuteAnnouncements = Plugin.instance.GetConfigIntList("bo_announce_times");
 
             teslaFlicker = Plugin.instance.GetConfigBool("bo_tesla_flicker");
 

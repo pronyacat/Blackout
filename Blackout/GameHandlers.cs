@@ -454,7 +454,7 @@ namespace Blackout
                 }
             }
 
-            Timing.In(RefreshGeneratorsLoop, 1 + inaccuracy);
+            Timing.In(RefreshGeneratorsLoop, generatorRefreshRate + inaccuracy);
         }
 
         /// <summary>
@@ -463,7 +463,7 @@ namespace Blackout
         /// <param name="inaccuracy">Timing offset.</param>
         private void BlackoutLoop(float inaccuracy = 0)
         {
-            Timing.In(BlackoutLoop, 11 + inaccuracy);
+            Timing.In(BlackoutLoop, 11 + flickerlightDuration + inaccuracy);
 
             Generator079.generators[0].CallRpcOvercharge();
             if (teslaFlicker)
