@@ -28,7 +28,7 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 
 | Config        | Value Type | Default | Description |
 | :-------------: | :---------: | :---------: |:------ |
-| bo_ranks | String List |  | Ranks allowed to run the `BLACKOUT` command. |
+| bo_ranks | String List | owner, admin | Ranks allowed to run the `BLACKOUT` command. |
 | bo_flashlights | Boolean | True | If scientists should get a flashlight when the lights go out. |
 | bo_flashbangs | Boolean | True | If everyone should get a flashbang on spawn. All flashbangs are removed when the lights go out. |
 | bo_slendy_percent | Float | 0.15 | Percentage of players that should be slendies (SCP-049). |
