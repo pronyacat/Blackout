@@ -68,7 +68,7 @@ namespace Blackout
 
             AddConfig(new ConfigSetting("bo_tesla_flicker", true, SettingType.BOOL, true, "If teslas should activate on light flicker."));
 
-            AddConfig(new ConfigSetting("bo_multithreaded", false, SettingType.BOOL, true, "If multithreading should be enabled. This may cause crashes on Linux, disable if so. Refreshed on server restart."));
+            AddConfig(new ConfigSetting("bo_multithreaded", true, SettingType.BOOL, true, "If multithreading should be enabled. This may cause crashes on Linux, disable if so. Refreshed on server restart."));
             Timing.Init(this, Priority.Normal, GetConfigBool("bo_multithreaded"));
 
             AddEventHandlers(new EventHandlers(), Priority.High); 
