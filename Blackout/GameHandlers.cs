@@ -407,9 +407,7 @@ namespace Blackout
             roomName = roomName.Substring(5).Trim().ToUpper();
 
             if (roomName.Length > 0 && (roomName[0] == '$' || roomName[0] == '!'))
-            {
                 roomName = roomName.Substring(1);
-            }
 
             switch (roomName)
             {
@@ -445,14 +443,14 @@ namespace Blackout
                 {
                     generator.NetworkremainingPowerup = generatorTimes[generator];
 
-                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(GetGeneratorName(generator.curRoom))} powering up...", 5, false);
+                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator.curRoom)} powering up...", 5, false);
                 }
 
                 foreach (Generator079 generator in newlyShutdown)
                 {
                     generatorTimes[generator] = generator.NetworkremainingPowerup;
 
-                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(GetGeneratorName(generator.curRoom))} was shut down.", 5, false);
+                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator.curRoom)} was shut down.", 5, false);
                 }
             }
 
