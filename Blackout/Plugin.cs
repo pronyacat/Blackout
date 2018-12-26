@@ -49,12 +49,13 @@ namespace Blackout
 
             AddConfig(new ConfigSetting("bo_start_delay", 30f, SettingType.FLOAT, true, "Time until the round starts."));
 			AddConfig(new ConfigSetting("bo_slendy_delay", 30f, SettingType.FLOAT, true, "Time until slendies are released."));
-            AddConfig(new ConfigSetting("bo_max_time", 600f, SettingType.FLOAT, true, "Time before the round ends."));
+            AddConfig(new ConfigSetting("bo_max_time", 720f, SettingType.FLOAT, true, "Time before the round ends."));
 			AddConfig(new ConfigSetting("bo_usp_time", 300f, SettingType.FLOAT, true, "Time until a USP spawns in nuke armory."));
             AddConfig(new ConfigSetting("bo_generator_refresh", 1f, SettingType.FLOAT, true, "Refresh rate of generator resume and broadcasts."));
             AddConfig(new ConfigSetting("bo_flickerlight_duration", 0f, SettingType.FLOAT, true, "Amount of time between light flickers."));
             AddConfig(new ConfigSetting("bo_announce_times", new[]
             {
+                10,
                 7,
                 4,
                 2,
