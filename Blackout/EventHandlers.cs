@@ -18,8 +18,9 @@ namespace Blackout
 		IEventHandlerSetRole
     {
         #region Config
-        public bool giveFlashlights;
-		public bool giveFlashbangs;
+        public int[] waitingItems;
+        public int[] gameItems;
+        public int[] escapeItems;
 
         public float percentSlendies;
 
@@ -42,10 +43,11 @@ namespace Blackout
 		{
 			Plugin.validRanks = Plugin.instance.GetConfigList("bo_ranks");
 
-			giveFlashlights = Plugin.instance.GetConfigBool("bo_flashlights");
-			giveFlashbangs = Plugin.instance.GetConfigBool("bo_flashbangs");
+			waitingItems = Plugin.instance.GetConfigIntList("bo_items_wait");
+		    gameItems = Plugin.instance.GetConfigIntList("bo_items_start");
+		    escapeItems = Plugin.instance.GetConfigIntList("bo_items_escape");
 
-			percentSlendies = Plugin.instance.GetConfigFloat("bo_slendy_percent");
+            percentSlendies = Plugin.instance.GetConfigFloat("bo_slendy_percent");
 
 		    startDelay = Plugin.instance.GetConfigFloat("bo_start_delay");
 			slendyDelay = Plugin.instance.GetConfigFloat("bo_slendy_delay");

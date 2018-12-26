@@ -1,4 +1,5 @@
-﻿using scp4aiur;
+﻿using System;
+using scp4aiur;
 using Smod2.API;
 using Smod2.Attributes;
 using Smod2.Config;
@@ -46,10 +47,25 @@ namespace Blackout
                 "admin"
             }, SettingType.LIST, true, "Valid ranks for the BLACKOUT command."));
 
-			AddConfig(new ConfigSetting("bo_flashlights", true, SettingType.BOOL, true, "If everyone should get a flashlight when the lights go out."));
-			AddConfig(new ConfigSetting("bo_flashbangs", true, SettingType.BOOL, true, "If everyone should get a flashbang on spawn. All flashbangs are removed when the lights go out."));
+            AddConfig(new ConfigSetting("bo_items_wait", new[]
+            {
+                (int)ItemType.FLASHBANG
+            }, SettingType.NUMERIC_LIST, true, "Items everyone should get while in 049s chamber. All items are removed when the lights go out."));
+            AddConfig(new ConfigSetting("bo_items_start", new[]
+			{
+                (int)ItemType.SCIENTIST_KEYCARD,
+                (int)ItemType.WEAPON_MANAGER_TABLET,
+			    (int)ItemType.RADIO,
+                (int)ItemType.FLASHLIGHT
+			}, SettingType.NUMERIC_LIST, true, "Items all scientists should get when the game starts."));
+            AddConfig(new ConfigSetting("bo_items_escape", new[]
+            {
+                (int)ItemType.E11_STANDARD_RIFLE,
+                (int)ItemType.FRAG_GRENADE,
+                (int)ItemType.FRAG_GRENADE
+            }, SettingType.NUMERIC_LIST, true, "Items everyone should get while in 049s chamber. All items are removed when the lights go out."));
 
-			AddConfig(new ConfigSetting("bo_slendy_percent", 0.15f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
+            AddConfig(new ConfigSetting("bo_slendy_percent", 0.15f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
 
             AddConfig(new ConfigSetting("bo_start_delay", 30f, SettingType.FLOAT, true, "Time until the round starts."));
 			AddConfig(new ConfigSetting("bo_slendy_delay", 30f, SettingType.FLOAT, true, "Time until slendies are released."));

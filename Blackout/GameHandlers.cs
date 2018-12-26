@@ -9,6 +9,7 @@ using Object = UnityEngine.Object;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Console = GameConsole.Console;
 
 namespace Blackout
 {
@@ -58,7 +59,7 @@ namespace Blackout
             foreach (Player player in players)
             {
                 SpawnScientist(player, false, false);
-                GiveWaitingItems(player);
+                SetItems(player, waitingItems);
             }
 
             // Set 049 spawn points
@@ -85,7 +86,7 @@ namespace Blackout
             ImprisonSlendies(randomizedPlayers.slendies);
 
             foreach (Player player in randomizedPlayers.scientists)
-                GiveGamemodeItems(player);
+                SetItems(player, gameItems);
             
             Timing.In(x => FreeSlendies(slendySpawns), slendyDelay - Cassie049BreachDelay);
             UpdateUspRespawns(uspRespawns);
@@ -266,45 +267,67 @@ namespace Blackout
             {
                 if (!isRoundStarted)
                 {
-                    GiveWaitingItems(player);
+                    SetItems(player, waitingItems);
                 }
                 else if (initInv)
                 {
-                    GiveGamemodeItems(player);
+                    SetItems(player, gameItems);
                 }
             });
         }
 
-        /// <summary>
-        /// Gives items to use mid-game to a scientist.
-        /// </summary>
-        /// <param name="player">Player to give items to. </param>
-		private void GiveGamemodeItems(Player player)
+        private void GiveItems(Player player, int[] items)
         {
-            // Remove all items
-            foreach (Smod2.API.Item item in player.GetInventory())
-                item.Remove();
+            GameObject playerObj = (GameObject)player.GetGameObject();
+            Inventory inv = playerObj.GetComponent<Inventory>();
+            WeaponManager manager = playerObj.GetComponent<WeaponManager>();
 
-            player.GiveItem(ItemType.SCIENTIST_KEYCARD);
-            player.GiveItem(ItemType.RADIO);
-            player.GiveItem(ItemType.WEAPON_MANAGER_TABLET);
+            Console console = Object.FindObjectOfType<Console>();
+            foreach (int item in items)
+            {
+                int i = WeaponManagerIndex(manager, item);
 
-            if (giveFlashlights)
-                player.GiveItem(ItemType.FLASHLIGHT);
+                if (item < 31)
+                {
+                    int flashlight;
+
+                    switch (item)
+                    {
+                        case (int)ItemType.E11_STANDARD_RIFLE:
+                            flashlight = 4;
+                            break;
+
+                        case (int)ItemType.P90:
+                        case (int)ItemType.USP:
+                        case (int)ItemType.COM15:
+                            flashlight = 1;
+                            break;
+
+                        default:
+                            player.GiveItem((ItemType)item);
+                            continue;
+                    }
+
+                    inv.AddNewItem(item, manager.weapons[i].maxAmmo, manager.modPreferences[i, 0], manager.modPreferences[i, 1], flashlight);
+                }
+                else
+                {
+                    // Support for ItemManager items
+                    console.TypeCommand($"imgive {player.PlayerId} {item}");
+                }
+            }
         }
 
-        /// <summary>
-        /// Gives items to use when stuck waiting in 049.
-        /// </summary>
-        /// <param name="player">Player to give items to.</param>
-		private void GiveWaitingItems(Player player)
+        private void RemoveItems(Player player)
         {
-            // Remove all items
             foreach (Smod2.API.Item item in player.GetInventory())
                 item.Remove();
+        }
 
-            if (giveFlashbangs)
-                player.GiveItem(ItemType.FLASHBANG);
+        private void SetItems(Player player, int[] items)
+        {
+            RemoveItems(player);
+            GiveItems(player, items);
         }
 
         /// <summary>
@@ -323,38 +346,26 @@ namespace Blackout
             // Convert only class, no inventory or spawn point
             player.ChangeRole(Role.NTF_SCIENTIST, false, false, false);
 
-            // Delete all items if set role gives them any
-            foreach (Smod2.API.Item item in player.GetInventory())
-                item.Remove();
+            SetItems(player, escapeItems);
 
-            GameObject playerObj = (GameObject)player.GetGameObject();
-            Inventory inv = playerObj.GetComponent<Inventory>();
-            WeaponManager manager = playerObj.GetComponent<WeaponManager>();
+            // todo: add grenade launcher and turn off ff for nade launcher
 
+            server.Round.Stats.ScientistsEscaped++;
+        }
+
+        private int WeaponManagerIndex(WeaponManager manager, int item)
+        {
             // Get weapon index in WeaponManager
             int weapon = -1;
             for (int i = 0; i < manager.weapons.Length; i++)
             {
-                if (manager.weapons[i].inventoryID == (int)ItemType.E11_STANDARD_RIFLE)
+                if (manager.weapons[i].inventoryID == item)
                 {
                     weapon = i;
                 }
             }
 
-            // Should never happen unless code above breaks
-            if (weapon == -1)
-            {
-                throw new IndexOutOfRangeException("Weapon not found");
-            }
-
-            // Flashlight attachment forced
-            inv.AddNewItem((int)ItemType.E11_STANDARD_RIFLE, 40, manager.modPreferences[weapon, 0], manager.modPreferences[weapon, 1], 4);
-            player.GiveItem(ItemType.RADIO);
-            player.GiveItem(ItemType.FRAG_GRENADE);
-
-            // todo: add grenade launcher and turn off ff for nade launcher
-
-            server.Round.Stats.ScientistsEscaped++;
+            return weapon;
         }
 
         /// <summary>
