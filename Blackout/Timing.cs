@@ -18,6 +18,7 @@ namespace scp4aiur
     internal class Timing : IEventHandlerUpdate, IEventHandlerRoundRestart
     {
         private static Action<string> log;
+        private static bool multiThreaded;
 
         private static object jobAccess;
         private static int jobId;
@@ -25,16 +26,18 @@ namespace scp4aiur
         
         private static List<int> roundJobs;
 
-        public static void Init(Smod2.Plugin plugin, Priority priority = Priority.Normal)
+        public static void Init(Smod2.Plugin plugin, Priority priority = Priority.Normal, bool threaded = true)
         {
+            multiThreaded = threaded;
             log = plugin.Info;
-            plugin.AddEventHandlers(new Timing(), priority);
             
             jobAccess = new object();
             jobId = int.MinValue;
 
             jobs = new Dictionary<int, QueueItem>();
             roundJobs = new List<int>();
+
+            plugin.AddEventHandlers(new Timing(), priority);
         }
 
         /// <summary>
@@ -64,7 +67,7 @@ namespace scp4aiur
         /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
         public static int Next(Action action, bool persistThroughRound = false)
         {
-            return Queue(new NextTickQueue(action), persistThroughRound);
+            return Queue(new NextTickQueue(action, multiThreaded), persistThroughRound);
         }
 
         /// <summary>
@@ -75,7 +78,7 @@ namespace scp4aiur
         /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
         public static int InTicks(Action action, int ticks, bool persistThroughRound = false)
         {
-            return Queue(new AfterTicksQueue(action, ticks), persistThroughRound);
+            return Queue(new AfterTicksQueue(action, ticks, multiThreaded), persistThroughRound);
         }
 
         /// <summary>
@@ -86,7 +89,7 @@ namespace scp4aiur
         /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
         public static int In(Action<float> action, float seconds, bool persistThroughRound = false)
         {
-            return Queue(new TimerQueue(action, seconds), persistThroughRound);
+            return Queue(new TimerQueue(action, seconds, multiThreaded), persistThroughRound);
         }
 
         /// <summary>
@@ -138,25 +141,33 @@ namespace scp4aiur
 
         private abstract class QueueItem
         {
-            private readonly Thread runThread;
             private readonly string name;
+            private readonly Action runAction;
 
             protected Action action;
             
             public Exception Exception { get; protected set; }
 
-            protected QueueItem(string jobName)
+            protected QueueItem(string jobName, bool multiThreaded)
             {
                 name = jobName;
-                
-                runThread = new Thread(SafeRun);
+
+                if (multiThreaded)
+                {
+                    Thread runThread = new Thread(SafeRun);
+                    runAction = () => runThread.Start();
+                }
+                else
+                {
+                    runAction = SafeRun;
+                }
             }
 
             public abstract bool RunThisTick();
 
             public void Run()
             {
-                runThread.Start();
+                runAction();
             }
 
             private void SafeRun()
@@ -174,7 +185,7 @@ namespace scp4aiur
 
         private class NextTickQueue : QueueItem
         {
-            public NextTickQueue(Action jobAction) : base("next-tick")
+            public NextTickQueue(Action jobAction, bool threaded) : base("next-tick", threaded)
             {
                 action = jobAction;
             }
@@ -189,7 +200,7 @@ namespace scp4aiur
         {
             private int ticksLeft;
 
-            public AfterTicksQueue(Action jobAction, int ticks) : base("after-ticks")
+            public AfterTicksQueue(Action jobAction, int ticks, bool threaded) : base("after-ticks", true)
             {
                 action = jobAction;
                 ticksLeft = ticks;
@@ -205,7 +216,7 @@ namespace scp4aiur
         {
             private float timeLeft;
 
-            public TimerQueue(Action<float> jobAction, float time) : base("timer")
+            public TimerQueue(Action<float> jobAction, float time, bool threaded) : base("timer", true)
             {
                 action = () => jobAction(timeLeft);
                 timeLeft = time;
