@@ -15,7 +15,7 @@ namespace Blackout
         IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
         IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
         IEventHandlerPlayerTriggerTesla, IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown,
-		IEventHandlerSetRole
+		IEventHandlerSetRole, IEventHandlerRecallZombie, IEventHandlerInfected
     {
         #region Config
         public int[] waitingItems;
@@ -249,6 +249,24 @@ namespace Blackout
             if (Plugin.active)
             {
                 ev.OpenDoorsAfter = false;
+            }
+        }
+
+        [Obsolete("Recommended for Smod use only.")]
+        public void OnRecallZombie(PlayerRecallZombieEvent ev)
+        {
+            if (Plugin.active)
+            {
+                ev.AllowRecall = false;
+            }
+        }
+
+        [Obsolete("Recommended for Smod use only.")]
+        public void OnPlayerInfected(PlayerInfectedEvent ev)
+        {
+            if (Plugin.active)
+            {
+                ev.InfectTime = 0;
             }
         }
     }

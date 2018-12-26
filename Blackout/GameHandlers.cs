@@ -348,8 +348,6 @@ namespace Blackout
 
             SetItems(player, escapeItems);
 
-            // todo: add grenade launcher and turn off ff for nade launcher
-
             server.Round.Stats.ScientistsEscaped++;
         }
 
@@ -461,7 +459,8 @@ namespace Blackout
                 {
                     generatorTimes[generator] = generator.NetworkremainingPowerup;
 
-                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator.curRoom)} was shut down.", 5, false);
+                    if (generator.NetworkremainingPowerup > 0)
+                        broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator.curRoom)} was shut down.", 5, false);
                 }
             }
 
