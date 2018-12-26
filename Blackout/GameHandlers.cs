@@ -203,8 +203,8 @@ namespace Blackout
 
             // Get percentage of 049s based on players
             int slendyCount = Mathf.FloorToInt(possibleSlendies.Count * percentSlendies);
-            //if (slendyCount == 0)
-                //slendyCount = 1;
+            if (slendyCount == 0)
+                slendyCount = 1;
 
             // Get random 049s
             Player[] slendies = new Player[slendyCount];
