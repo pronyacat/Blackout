@@ -18,10 +18,11 @@ namespace scp4aiur
     internal class Timing : IEventHandlerUpdate, IEventHandlerRoundRestart
     {
         private static Action<string> log;
-        
-        private static int jobId;
 
+        private static object jobAccess;
+        private static int jobId;
         private static Dictionary<int, QueueItem> jobs;
+        
         private static List<int> roundJobs;
 
         public static void Init(Smod2.Plugin plugin, Priority priority = Priority.Normal)
@@ -29,6 +30,7 @@ namespace scp4aiur
             log = plugin.Info;
             plugin.AddEventHandlers(new Timing(), priority);
             
+            jobAccess = new object();
             jobId = int.MinValue;
 
             jobs = new Dictionary<int, QueueItem>();
@@ -43,7 +45,10 @@ namespace scp4aiur
         private static int Queue(QueueItem item, bool persistThroughRound)
         {
             int id = jobId++;
-            jobs.Add(id, item);
+            lock (jobAccess)
+            {
+                jobs.Add(id, item);
+            }
             if (!persistThroughRound)
             {
                 roundJobs.Add(id);
@@ -90,7 +95,10 @@ namespace scp4aiur
         /// <param name="id">ID of the job to remove.</param>
         public static bool Remove(int id)
         {
-            return jobs.Remove(id);
+            lock (jobAccess)
+            {
+                return jobs.Remove(id);
+            }
         }
 
         /// <summary>
@@ -100,10 +108,16 @@ namespace scp4aiur
         /// <param name="ev"></param>
         public void OnUpdate(UpdateEvent ev)
         {
-            foreach (KeyValuePair<int, QueueItem> job in jobs.Where(x => x.Value.RunThisTick()).ToArray())
+            KeyValuePair<int, QueueItem>[] threadSafeJobs;
+            lock (jobAccess)
+            {
+                threadSafeJobs = jobs.Where(x => x.Value.RunThisTick()).ToArray();
+            }
+
+            foreach (KeyValuePair<int, QueueItem> job in threadSafeJobs)
             {
                 job.Value.Run();
-                jobs.Remove(job.Key);
+                Remove(job.Key);
             }
         }
 
@@ -118,6 +132,8 @@ namespace scp4aiur
             {
                 Remove(job);
             }
+
+            roundJobs.Clear();
         }
 
         private abstract class QueueItem

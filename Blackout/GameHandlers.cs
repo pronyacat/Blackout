@@ -4,6 +4,7 @@ using Smod2.API;
 
 using UnityEngine;
 using Random = UnityEngine.Random;
+using Object = UnityEngine.Object;
 
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace Blackout
             "Commander keycards will spawn in 096 (like usual) and nuke. When you escape, you will be given weapons to kill all 049s. " +
             "Eliminate all of them before the nuke detonates for a scientist win.";
 
-        private const float Cassie049BreachDelay = 9f;
+        private const float Cassie049BreachDelay = 8.25f;
 
         private bool isRoundStarted;
         private bool escapeReady;
@@ -33,6 +34,7 @@ namespace Blackout
 
         private Dictionary<Player, Vector> slendySpawns;
         private (Player[] slendies, List<Player> scientists) randomizedPlayers;
+        private Vector3[] uspRespawns;
 
         private string[] activeGenerators;
         private List<Smod2.API.TeslaGate> teslas;
@@ -43,8 +45,11 @@ namespace Blackout
         /// <param name="players">All the players involved in the game.</param>
         private void GamePrep(IReadOnlyCollection<Player> players)
         {
+            Pickup[] pickups = Object.FindObjectsOfType<Pickup>();
+
+            uspRespawns = UspSpawnPoints(pickups).ToArray();
+            UpdateItems(pickups);
             SetMapBoundaries();
-            UpdateItems();
             
             randomizedPlayers = RandomizePlayers(players);
 
@@ -73,7 +78,7 @@ namespace Blackout
 
             int maxTimeMinutes = Mathf.FloorToInt(maxTime / 60);
             float remainder = maxTime - maxTimeMinutes * 60;
-            Timing.In(a => AnnounceTimeLoops(maxTimeMinutes - 1, a), remainder);
+            Timing.In(x => AnnounceTimeLoops(maxTimeMinutes - 1, x), remainder);
 
             ImprisonSlendies(randomizedPlayers.slendies);
 
@@ -81,11 +86,12 @@ namespace Blackout
                 GiveGamemodeItems(player);
             
             Timing.In(x => FreeSlendies(slendySpawns), slendyDelay - Cassie049BreachDelay);
+            UpdateUspRespawns(uspRespawns);
 
             Timing.InTicks(() => // Unlock round
             {
                 isRoundStarted = true;
-            }, 2); //todo: if this breaks, increast tick count
+            }, 4);
         }
 
         /// <summary>
@@ -114,36 +120,52 @@ namespace Blackout
         }
 
         /// <summary>
-        /// Removes HIDs, replaces keycards, and replaces rifles with timed USP spawns
+        /// Removes HIDs, replaces keycards
         /// </summary>
-        private void UpdateItems()
+        private static void UpdateItems(Pickup[] pickups)
         {
-            // Spawn commander cards in position of guard cards
-            foreach (Smod2.API.Item item in server.Map
-                .GetItems(ItemType.GUARD_KEYCARD, true)
-                .Concat(server.Map.GetItems(ItemType.SENIOR_GUARD_KEYCARD, true)))
+            // Delete all micro HIDs or USPs
+            foreach (Pickup gun in pickups.Where(x => 
+                x.info.itemId == (int)ItemType.MICROHID ||
+                x.info.itemId == (int)ItemType.USP ||
+                x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE
+                ))
+                gun.Delete();
+
+            foreach (Pickup keycard in pickups.Where(x => -1 < x.info.itemId && x.info.itemId < 12)) // All keycard items
             {
-                server.Map.SpawnItem(ItemType.MTF_COMMANDER_KEYCARD, item.GetPosition(), Vector.Zero);
-                item.Remove();
+                Pickup.PickupInfo info = keycard.info;
+                info.itemId = (int) ItemType.MTF_COMMANDER_KEYCARD;
+                keycard.Networkinfo = info;
             }
+        }
 
-            // Delete all HIDs
-            foreach (Smod2.API.Item hid in server.Map.GetItems(ItemType.MICROHID, true))
-                hid.Remove();
+        /// <summary>
+        /// Gets all the possible timed-USP spawn points.
+        /// </summary>
+        /// <param name="allPickups">Every pickup on the map.</param>
+        private static IEnumerable<Vector3> UspSpawnPoints(IEnumerable<Pickup> allPickups)
+        {
+            return allPickups.Where(x => x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE).Select(x => x.info.position);
+        }
 
-            // Delete rifles and make them into USP spawns
-            List<Smod2.API.Item> rifles = server.Map.GetItems(ItemType.E11_STANDARD_RIFLE, true);
-            Vector[] uspSpawns = rifles.Select(x => x.GetPosition()).ToArray();
-            foreach (Smod2.API.Item weapon in rifles.Concat(server.Map.GetItems(ItemType.USP, true)))
-                weapon.Remove();
+        /// <summary>
+        /// Starts the timer on USP respawning.
+        /// </summary>
+        /// <param name="spawns">Spawn positions for USPs.</param>
+        private void UpdateUspRespawns(IEnumerable<Vector3> spawns)
+        {
+            GameObject host = GameObject.Find("Host");
+            Inventory inventory = host.GetComponent<Inventory>();
+            WeaponManager.Weapon usp = host.GetComponent<WeaponManager>().weapons.First(x => x.inventoryID == (int) ItemType.USP);
 
-            // Spawn all USPs in defined time
             Timing.In(x =>
             {
                 cassie.CallRpcPlayCustomAnnouncement("U S P NOW AVAILABLE", false);
 
-                foreach (Vector spawn in uspSpawns)
-                    server.Map.SpawnItem(ItemType.USP, spawn, Vector.Zero);
+                // Spawn USPs with random sight, heavy barrel, and flashlight :ok_hand:
+                foreach (Vector3 spawn in spawns)
+                    inventory.SetPickup((int) ItemType.USP, usp.maxAmmo, spawn, Quaternion.Euler(0, 0, 0), Random.Range(0, usp.mod_sights.Length), 2, 1);
             }, uspTime);
         }
 
@@ -181,8 +203,8 @@ namespace Blackout
 
             // Get percentage of 049s based on players
             int slendyCount = Mathf.FloorToInt(possibleSlendies.Count * percentSlendies);
-            if (slendyCount == 0)
-                slendyCount = 1;
+            //if (slendyCount == 0)
+                //slendyCount = 1;
 
             // Get random 049s
             Player[] slendies = new Player[slendyCount];
@@ -216,7 +238,7 @@ namespace Blackout
         /// <param name="slendies">Slendies and their corresponding spawn points.</param>
         private void FreeSlendies(Dictionary<Player, Vector> slendies)
         {
-            cassie.CallRpcPlayCustomAnnouncement("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN 3 . 2 . 1", false);
+            cassie.CallRpcPlayCustomAnnouncement("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS", false);
 
             Timing.In(x =>
             {
@@ -355,13 +377,13 @@ namespace Blackout
                 }
 
                 cassieLine += "ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED";
-                const float cassieDelay = 9f;
+                const float nukeStart = 50f; // Makes sure that the nuke starts when the siren is almost silent so it sounds like it just started
 
                 Timing.In(x =>
                 {
                     AlphaWarheadController.host.StartDetonation();
-                    AlphaWarheadController.host.NetworktimeToDetonation = 60 - cassieDelay + inaccuracy;
-                }, cassieDelay);
+                    AlphaWarheadController.host.NetworktimeToDetonation = nukeStart;
+                }, 60 - nukeStart);
             }
             else
             {
