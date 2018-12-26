@@ -36,8 +36,9 @@ namespace Blackout
         private (Player[] slendies, List<Player> scientists) randomizedPlayers;
         private Vector3[] uspRespawns;
 
-        private string[] activeGenerators;
+        private Generator079[] activeGenerators;
         private List<Smod2.API.TeslaGate> teslas;
+        private Dictionary<Generator079, float> generatorTimes;
 
         /// <summary>
         /// Spawns everyone in waiting room and caches spawns and players.
@@ -63,7 +64,8 @@ namespace Blackout
             // Set 049 spawn points
             slendySpawns = GenerateSpawnPoints(randomizedPlayers.slendies);
 
-            activeGenerators = new string[0];
+            activeGenerators = new Generator079[0];
+            generatorTimes = Generator079.generators.ToDictionary(x => x, x => x.remainingPowerup);
             teslas = server.Map.GetTeslaGates();
         }
 
@@ -433,15 +435,26 @@ namespace Blackout
         {
             Timing.In(RefreshGeneratorsLoop, 1 + inaccuracy);
 
-            string[] newActiveGenerators =
-                Generator079.generators.Where(x => x.isTabletConnected).Select(x => x.curRoom).ToArray();
+            Generator079[] currentActiveGenerators = Generator079.generators.Where(x => x.isTabletConnected).ToArray();
 
-            if (!activeGenerators.SequenceEqual(newActiveGenerators))
+            if (!activeGenerators.SequenceEqual(currentActiveGenerators))
             {
-                foreach (string generator in newActiveGenerators.Except(activeGenerators))
-                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator)} powering up...", 5, false);
+                foreach (Generator079 generator in currentActiveGenerators.Except(activeGenerators))
+                {
+                    if (generatorTimes[generator] != -1)
+                        generator.NetworkremainingPowerup = generatorTimes[generator];
 
-                activeGenerators = newActiveGenerators;
+                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(GetGeneratorName(generator.curRoom))} powering up...", 5, false);
+                }
+
+                foreach (Generator079 generator in activeGenerators.Except(currentActiveGenerators))
+                {
+                    generatorTimes[generator] = generator.NetworkremainingPowerup;
+
+                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(GetGeneratorName(generator.curRoom))} was shut down.", 5, false);
+                }
+
+                activeGenerators = currentActiveGenerators;
             }
         }
 
