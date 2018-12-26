@@ -433,29 +433,30 @@ namespace Blackout
         /// <param name="inaccuracy">Timing offset</param>
         private void RefreshGeneratorsLoop(float inaccuracy = 0)
         {
-            Timing.In(RefreshGeneratorsLoop, 1 + inaccuracy);
-
             Generator079[] currentActiveGenerators = Generator079.generators.Where(x => x.isTabletConnected).ToArray();
 
             if (!activeGenerators.SequenceEqual(currentActiveGenerators))
             {
-                foreach (Generator079 generator in currentActiveGenerators.Except(activeGenerators))
+                Generator079[] newlyActivated = currentActiveGenerators.Except(activeGenerators).ToArray();
+                Generator079[] newlyShutdown = activeGenerators.Except(currentActiveGenerators).ToArray();
+                activeGenerators = currentActiveGenerators;
+
+                foreach (Generator079 generator in newlyActivated)
                 {
-                    if (generatorTimes[generator] != -1)
-                        generator.NetworkremainingPowerup = generatorTimes[generator];
+                    generator.NetworkremainingPowerup = generatorTimes[generator];
 
                     broadcast.CallRpcAddElement($"Generator {GetGeneratorName(GetGeneratorName(generator.curRoom))} powering up...", 5, false);
                 }
 
-                foreach (Generator079 generator in activeGenerators.Except(currentActiveGenerators))
+                foreach (Generator079 generator in newlyShutdown)
                 {
                     generatorTimes[generator] = generator.NetworkremainingPowerup;
 
                     broadcast.CallRpcAddElement($"Generator {GetGeneratorName(GetGeneratorName(generator.curRoom))} was shut down.", 5, false);
                 }
-
-                activeGenerators = currentActiveGenerators;
             }
+
+            Timing.In(RefreshGeneratorsLoop, 1 + inaccuracy);
         }
 
         /// <summary>
