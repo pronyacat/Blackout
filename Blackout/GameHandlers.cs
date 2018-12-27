@@ -65,7 +65,8 @@ namespace Blackout
             slendySpawns = GenerateSpawnPoints(randomizedPlayers.slendies);
 
             activeGenerators = new Generator079[0];
-            generatorTimes = Generator079.generators.ToDictionary(x => x, x => x.remainingPowerup);
+            float powerUp = Plugin.instance.GetConfigFloat("bo_generator_time");
+            generatorTimes = Generator079.generators.ToDictionary(x => x, x => powerUp);
             teslas = server.Map.GetTeslaGates();
         }
 
