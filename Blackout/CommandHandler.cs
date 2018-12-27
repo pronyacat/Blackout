@@ -21,7 +21,7 @@ namespace Blackout
 			{
 				if (args.Length > 0)
 				{
-					switch (args[0])
+					switch (args[0].ToLower())
 					{
 						case "toggle":
 							Plugin.toggled = !Plugin.toggled;
