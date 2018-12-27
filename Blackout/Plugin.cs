@@ -64,7 +64,7 @@ namespace Blackout
                 (int)ItemType.FRAG_GRENADE
             }, SettingType.NUMERIC_LIST, true, "Items everyone should get while in 049s chamber. All items are removed when the lights go out."));
 
-            AddConfig(new ConfigSetting("bo_slendy_percent", 0.15f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
+            AddConfig(new ConfigSetting("bo_slendy_percent", 0.10f, SettingType.FLOAT, true, "Percentage of players that should be slendies."));
 
             AddConfig(new ConfigSetting("bo_start_delay", 30f, SettingType.FLOAT, true, "Time until the round starts."));
 			AddConfig(new ConfigSetting("bo_slendy_delay", 30f, SettingType.FLOAT, true, "Time until slendies are released."));
