@@ -29,8 +29,9 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 | Config        | Value Type | Default | Description |
 | :-------------: | :---------: | :---------: |:------ |
 | bo_ranks | String List | owner, admin | Ranks allowed to run the `BLACKOUT` command. |
-| bo_flashlights | Boolean | True | If scientists should get a flashlight when the lights go out. |
-| bo_flashbangs | Boolean | True | If everyone should get a flashbang on spawn. All flashbangs are removed when the lights go out. |
+| bo_items_wait | Integer List | 26 | Items scientists should be given in the waiting room. These are removed when the gamemode starts. |
+| bo_items_start | Integer List | 1,19,12,15 | Items scientists should be given when the gamemode start. |
+| bo_items_escape | Integer List | 20,25,25 | Items scientists should be given when they escape and turn into NTF scientists. |
 | bo_slendy_percent | Float | 0.15 | Percentage of players that should be slendies (SCP-049). |
 | bo_start_delay | Float | 30 | Time in seconds until the round starts. |
 | bo_slendy_delay | Float | 30 | Time in seconds until 049s are released. |
@@ -38,6 +39,6 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 | bo_max_time | Float | 720 | Time in seconds before the round ends. |
 | bo_usp_time | Float | 300 | Time in seconds before a USP spawns in nuke armory. |
 | bo_generator_refresh | Float | 1 | Refresh rate of generator resuming and broadcasts. |
-| bo_announce_times | Integer List | 10, 7,4,2,1 | Minute times for CASSIE to announce how many minutes are remaining. |
+| bo_announce_times | Integer List | 10,7,4,2,1 | Minute times for CASSIE to announce how many minutes are remaining. |
 | bo_tesla_flicker | Boolean | True | If teslas should activate on light flicker. |
 | bo_multithreaded | Boolean | True | If multithreading should be enabled. This may cause crashes on Linux, disable if so. Refreshed on server restart. |
