@@ -1,5 +1,4 @@
-﻿using System;
-using scp4aiur;
+﻿using scp4aiur;
 using Smod2.API;
 using Smod2.Attributes;
 using Smod2.Config;

@@ -1,15 +1,14 @@
 ﻿using scp4aiur;
 using Smod2;
 using Smod2.API;
+using Console = GameConsole.Console;
 
 using UnityEngine;
 using Random = UnityEngine.Random;
 using Object = UnityEngine.Object;
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using Console = GameConsole.Console;
 
 namespace Blackout
 {
@@ -276,7 +275,12 @@ namespace Blackout
             });
         }
 
-        private void GiveItems(Player player, int[] items)
+        /// <summary>
+        /// Gives an array of items to players.
+        /// </summary>
+        /// <param name="player">Player to give items to.</param>
+        /// <param name="items">Items to give the player.</param>
+        private void GiveItems(Player player, IEnumerable<int> items)
         {
             GameObject playerObj = (GameObject)player.GetGameObject();
             Inventory inv = playerObj.GetComponent<Inventory>();
@@ -318,13 +322,22 @@ namespace Blackout
             }
         }
 
+        /// <summary>
+        /// Clears a players inventory.
+        /// </summary>
+        /// <param name="player">Player whose inventory would be cleared</param>
         private void RemoveItems(Player player)
         {
             foreach (Smod2.API.Item item in player.GetInventory())
                 item.Remove();
         }
 
-        private void SetItems(Player player, int[] items)
+        /// <summary>
+        /// Overwrites the players inventory with an array of items.
+        /// </summary>
+        /// <param name="player">Player whose inventory should be set.</param>
+        /// <param name="items">Items the players should have.</param>
+        private void SetItems(Player player, IEnumerable<int> items)
         {
             RemoveItems(player);
             GiveItems(player, items);
@@ -351,7 +364,12 @@ namespace Blackout
             server.Round.Stats.ScientistsEscaped++;
         }
 
-        private int WeaponManagerIndex(WeaponManager manager, int item)
+        /// <summary>
+        /// Gets the index of an item in WeaponManager from a weapon ItemType.
+        /// </summary>
+        /// <param name="manager">A player's weapon manager.</param>
+        /// <param name="item">The ItemType of the weapon.</param>
+        private static int WeaponManagerIndex(WeaponManager manager, int item)
         {
             // Get weapon index in WeaponManager
             int weapon = -1;

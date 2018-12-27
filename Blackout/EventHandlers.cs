@@ -252,6 +252,9 @@ namespace Blackout
             }
         }
 
+        /// <summary>
+        /// Prevents 049 from ressurecting.
+        /// </summary>
         [Obsolete("Recommended for Smod use only.")]
         public void OnRecallZombie(PlayerRecallZombieEvent ev)
         {
@@ -261,6 +264,9 @@ namespace Blackout
             }
         }
 
+        /// <summary>
+        /// Makes 049 have no recall time so they don't realize that they can't ressurect until they look at the body for 10 seconds.
+        /// </summary>
         [Obsolete("Recommended for Smod use only.")]
         public void OnPlayerInfected(PlayerInfectedEvent ev)
         {
