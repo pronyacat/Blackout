@@ -15,47 +15,30 @@ namespace scp4aiur
     /// <summary>
     /// Module for easy and efficient frame-based timers
     /// </summary>
-    internal class Timing : IEventHandlerUpdate, IEventHandlerRoundRestart
+    internal class Timing : IEventHandlerUpdate
     {
         private static Action<string> log;
-        private static bool multiThreaded;
 
-        private static object jobAccess;
         private static int jobId;
         private static Dictionary<int, QueueItem> jobs;
 
-        private static List<int> roundJobs;
-
-        public static void Init(Smod2.Plugin plugin, Priority priority = Priority.Normal, bool threaded = true)
+        public static void Init(Smod2.Plugin plugin, Priority priority = Priority.Normal)
         {
-            multiThreaded = threaded;
             log = plugin.Info;
-
-            jobAccess = new object();
-            jobId = int.MinValue;
-
-            jobs = new Dictionary<int, QueueItem>();
-            roundJobs = new List<int>();
-
             plugin.AddEventHandlers(new Timing(), priority);
+
+            jobId = int.MinValue;
+            jobs = new Dictionary<int, QueueItem>();
         }
 
         /// <summary>
         /// Queues a job.
         /// </summary>
         /// <param name="item">Job to queue.</param>
-        /// <param name="persistThroughRound"></param>
-        private static int Queue(QueueItem item, bool persistThroughRound)
+        private static int Queue(QueueItem item)
         {
             int id = jobId++;
-            lock (jobAccess)
-            {
-                jobs.Add(id, item);
-            }
-            if (!persistThroughRound)
-            {
-                roundJobs.Add(id);
-            }
+            jobs.Add(id, item);
 
             return id;
         }
@@ -64,32 +47,9 @@ namespace scp4aiur
         /// Queues a job for the next tick.
         /// </summary>
         /// <param name="action">Job to execute.</param>
-        /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
-        public static int Next(Action action, bool persistThroughRound = false)
+        public static int Next(Action action)
         {
-            return Queue(new NextTickQueue(action, multiThreaded), persistThroughRound);
-        }
-
-        /// <summary>
-        /// Queues a job to run in a certain amount of ticks.
-        /// </summary>
-        /// <param name="action">Job to execute.</param>
-        /// <param name="ticks">Number of ticks to wait.</param>
-        /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
-        public static int InTicks(Action action, int ticks, bool persistThroughRound = false)
-        {
-            return Queue(new AfterTicksQueue(action, ticks, multiThreaded), persistThroughRound);
-        }
-
-        /// <summary>
-        /// Queues a job to run in a certain amount of seconds
-        /// </summary>
-        /// <param name="action">Job to execute.</param>
-        /// <param name="seconds">Number of seconds to wait.</param>
-        /// <param name="persistThroughRound">If the timer should auto dispose at the end of a round.</param>
-        public static int In(Action<float> action, float seconds, bool persistThroughRound = false)
-        {
-            return Queue(new TimerQueue(action, seconds, multiThreaded), persistThroughRound);
+            return Queue(new NextTickQueue(action));
         }
 
         /// <summary>
@@ -98,10 +58,27 @@ namespace scp4aiur
         /// <param name="id">ID of the job to remove.</param>
         public static bool Remove(int id)
         {
-            lock (jobAccess)
-            {
-                return jobs.Remove(id);
-            }
+            return jobs.Remove(id);
+        }
+
+        /// <summary>
+        /// Queues a job to run in a certain amount of ticks.
+        /// </summary>
+        /// <param name="action">Job to execute.</param>
+        /// <param name="ticks">Number of ticks to wait.</param>
+        public static int InTicks(Action action, int ticks)
+        {
+            return Queue(new AfterTicksQueue(action, ticks));
+        }
+
+        /// <summary>
+        /// Queues a job to run in a certain amount of seconds
+        /// </summary>
+        /// <param name="action">Job to execute.</param>
+        /// <param name="seconds">Number of seconds to wait.</param>
+        public static int In(Action<float> action, float seconds)
+        {
+            return Queue(new TimerQueue(action, seconds));
         }
 
         /// <summary>
@@ -111,63 +88,34 @@ namespace scp4aiur
         /// <param name="ev"></param>
         public void OnUpdate(UpdateEvent ev)
         {
-            KeyValuePair<int, QueueItem>[] threadSafeJobs;
-            lock (jobAccess)
-            {
-                threadSafeJobs = jobs.Where(x => x.Value.RunThisTick()).ToArray();
-            }
-
-            foreach (KeyValuePair<int, QueueItem> job in threadSafeJobs)
+            foreach (KeyValuePair<int, QueueItem> job in jobs.Where(x => x.Value.RunThisTick()).ToArray())
             {
                 job.Value.Run();
-                Remove(job.Key);
+                jobs.Remove(job.Key);
             }
-        }
-
-        /// <summary>
-        /// <para>DO NOT USE</para>
-        /// <para>This is an event for Smod2 and as such should not be called by any external code </para>
-        /// </summary>
-        /// <param name="ev"></param>
-        public void OnRoundRestart(RoundRestartEvent ev)
-        {
-            foreach (int job in roundJobs)
-            {
-                Remove(job);
-            }
-
-            roundJobs.Clear();
         }
 
         private abstract class QueueItem
         {
+            private readonly Thread runThread;
             private readonly string name;
-            private readonly Action runAction;
 
             protected Action action;
 
             public Exception Exception { get; protected set; }
 
-            protected QueueItem(string jobName, bool multiThreaded)
+            protected QueueItem(string jobName)
             {
                 name = jobName;
 
-                if (multiThreaded)
-                {
-                    Thread runThread = new Thread(SafeRun);
-                    runAction = () => runThread.Start();
-                }
-                else
-                {
-                    runAction = SafeRun;
-                }
+                runThread = new Thread(SafeRun);
             }
 
             public abstract bool RunThisTick();
 
             public void Run()
             {
-                runAction();
+                runThread.Start();
             }
 
             private void SafeRun()
@@ -185,7 +133,7 @@ namespace scp4aiur
 
         private class NextTickQueue : QueueItem
         {
-            public NextTickQueue(Action jobAction, bool threaded) : base("next-tick", threaded)
+            public NextTickQueue(Action jobAction) : base("next-tick")
             {
                 action = jobAction;
             }
@@ -200,7 +148,7 @@ namespace scp4aiur
         {
             private int ticksLeft;
 
-            public AfterTicksQueue(Action jobAction, int ticks, bool threaded) : base("after-ticks", threaded)
+            public AfterTicksQueue(Action jobAction, int ticks) : base("after-ticks")
             {
                 action = jobAction;
                 ticksLeft = ticks;
@@ -216,7 +164,7 @@ namespace scp4aiur
         {
             private float timeLeft;
 
-            public TimerQueue(Action<float> jobAction, float time, bool threaded) : base("timer", threaded)
+            public TimerQueue(Action<float> jobAction, float time) : base("timer")
             {
                 action = () => jobAction(timeLeft);
                 timeLeft = time;

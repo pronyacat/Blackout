@@ -83,9 +83,8 @@ namespace Blackout
             }, SettingType.NUMERIC_LIST, true, "Minutes remaining that should be announced"));
 
             AddConfig(new ConfigSetting("bo_tesla_flicker", true, SettingType.BOOL, true, "If teslas should activate on light flicker."));
-
-            AddConfig(new ConfigSetting("bo_multithreaded", true, SettingType.BOOL, true, "If multithreading should be enabled. This may cause crashes on Linux, disable if so. Refreshed on server restart."));
-            Timing.Init(this, Priority.Normal, GetConfigBool("bo_multithreaded"));
+            
+            Timing.Init(this);
 
             AddEventHandlers(new EventHandlers(), Priority.High); 
             // LASER HIGH PRIORITY IS NECESSARY
