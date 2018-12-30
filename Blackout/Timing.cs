@@ -97,7 +97,6 @@ namespace scp4aiur
 
         private abstract class QueueItem
         {
-            private readonly Thread runThread;
             private readonly string name;
 
             protected Action action;
@@ -107,18 +106,11 @@ namespace scp4aiur
             protected QueueItem(string jobName)
             {
                 name = jobName;
-
-                runThread = new Thread(SafeRun);
             }
 
             public abstract bool RunThisTick();
 
             public void Run()
-            {
-                runThread.Start();
-            }
-
-            private void SafeRun()
             {
                 try
                 {
