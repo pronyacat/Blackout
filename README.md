@@ -16,6 +16,7 @@ When the round starts, all players will be in SCP-049s chamber, the door will be
 **[Smod2](https://github.com/Grover-c13/Smod2) must be installed for this to work.**
 
 Place the "Blackout.dll" file in your sm_plugins folder.
+**Plugin is still being made, and as such no builds are publicly available.**
 
 # Commands
 
