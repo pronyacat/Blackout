@@ -15,14 +15,18 @@ namespace Blackout
         IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
         IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
         IEventHandlerPlayerTriggerTesla, IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown,
-		IEventHandlerSetRole, IEventHandlerRecallZombie, IEventHandlerInfected
+		IEventHandlerSetRole, IEventHandlerRecallZombie, IEventHandlerInfected, IEventHandlerCallCommand,
+        IEventHandlerIntercom
     {
+        private readonly BlackoutPlugin plugin;
+
         #region Config
         public int[] waitingItems;
         public int[] gameItems;
         public int[] escapeItems;
 
         public float percentSlendies;
+        public float percentFc;
 
         public float startDelay;
 		public float slendyDelay;
@@ -35,31 +39,36 @@ namespace Blackout
         public bool teslaFlicker;
         #endregion
 
+        public EventHandlers(BlackoutPlugin plugin)
+        {
+            this.plugin = plugin;
+            fcScripts = new List<Scp079PlayerScript>();
+        }
+
         /// <summary>
         /// Loads all the configs
         /// </summary>
         [Obsolete("Recommended for Smod use only.")]
         public void OnWaitingForPlayers(WaitingForPlayersEvent ev)
 		{
-			Plugin.validRanks = Plugin.instance.GetConfigList("bo_ranks");
+			BlackoutPlugin.validRanks = plugin.GetConfigList("bo_ranks");
 
-			waitingItems = Plugin.instance.GetConfigIntList("bo_items_wait");
-		    gameItems = Plugin.instance.GetConfigIntList("bo_items_start");
-		    escapeItems = Plugin.instance.GetConfigIntList("bo_items_escape");
+			waitingItems = plugin.GetConfigIntList("bo_items_wait");
+		    gameItems = plugin.GetConfigIntList("bo_items_start");
+		    escapeItems = plugin.GetConfigIntList("bo_items_escape");
 
-            percentSlendies = Plugin.instance.GetConfigFloat("bo_slendy_percent");
+            percentSlendies = plugin.GetConfigFloat("bo_slendy_percent");
+		    percentFc = plugin.GetConfigFloat("bo_fc_percent");
 
-		    startDelay = Plugin.instance.GetConfigFloat("bo_start_delay");
-			slendyDelay = Plugin.instance.GetConfigFloat("bo_slendy_delay");
-            maxTime = Plugin.instance.GetConfigFloat("bo_max_time");
-			uspTime = Plugin.instance.GetConfigFloat("bo_usp_time");
-		    generatorRefreshRate = Plugin.instance.GetConfigFloat("bo_generator_refresh");
-		    flickerlightDuration = Plugin.instance.GetConfigFloat("bo_flickerlight_duration");
-            minuteAnnouncements = Plugin.instance.GetConfigIntList("bo_announce_times");
+            startDelay = plugin.GetConfigFloat("bo_start_delay");
+			slendyDelay = plugin.GetConfigFloat("bo_slendy_delay");
+            maxTime = plugin.GetConfigFloat("bo_max_time");
+			uspTime = plugin.GetConfigFloat("bo_usp_time");
+		    generatorRefreshRate = plugin.GetConfigFloat("bo_generator_refresh");
+		    flickerlightDuration = plugin.GetConfigFloat("bo_flickerlight_duration");
+            minuteAnnouncements = plugin.GetConfigIntList("bo_announce_times");
 
-            teslaFlicker = Plugin.instance.GetConfigBool("bo_tesla_flicker");
-
-		    server = ev.Server;
+            teslaFlicker = plugin.GetConfigBool("bo_tesla_flicker");
 		}
 
         /// <summary>
@@ -69,23 +78,21 @@ namespace Blackout
         public void OnRoundStart(RoundStartEvent ev)
         {
             #region Check and set if active
-            if (!Plugin.activeNextRound && !Plugin.toggled)
+            if (!BlackoutPlugin.activeNextRound && !BlackoutPlugin.toggled)
                 return;
 
-            Plugin.active = true;
-			Plugin.activeNextRound = false;
-		    isRoundStarted = false;
+            BlackoutPlugin.active = true;
+			BlackoutPlugin.activeNextRound = false;
+		    roundStarted = false;
+            slendiesFree = false;
+            escapeReady = false;
             #endregion
-
-            // Get announcement variables
-            broadcast = Object.FindObjectOfType<Broadcast>();
-            cassie = PlayerManager.localPlayer.GetComponent<MTFRespawn>();
-
-            List<Player> allPlayers = server.GetPlayers();
+            
+            List<Player> allPlayers = plugin.Server.GetPlayers();
             GamePrep(allPlayers);
 
             // Inform players
-            broadcast.CallRpcAddElement(BroadcastExplanation, 10, false);
+            plugin.Server.Map.Broadcast(10, BroadcastExplanation, false);
             foreach (Player player in allPlayers)
                 player.SendConsoleMessage(ConsoleExplaination);
 
@@ -95,7 +102,7 @@ namespace Blackout
             // Announcements
             Timing.In(x =>
             {
-                cassie.CallRpcPlayCustomAnnouncement("LIGHT SYSTEM SCP079RECON6", false);
+                plugin.Server.Map.AnnounceCustomMessage("LIGHT SYSTEM SCP079RECON6");
 
                 // Blackout
                 Timing.In(y =>
@@ -114,9 +121,39 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnCheckRoundEnd(CheckRoundEndEvent ev)
         {
-            if (Plugin.active && !isRoundStarted)
+            if (BlackoutPlugin.active)
             {
-                ev.Status = ROUND_END_STATUS.ON_GOING;
+                if (!roundStarted)
+                {
+                    ev.Status = ROUND_END_STATUS.ON_GOING;
+                }
+                else
+                {
+                    Smod2.API.Team[] players = PlayerManager.singleton.players.Select(x =>
+                    {
+                        CharacterClassManager ccm = x.GetComponent<CharacterClassManager>();
+                        return (Smod2.API.Team) ccm.klasy[ccm.curClass].team;
+                    }).ToArray();
+
+                    bool mtf = players.Count(x => x == Smod2.API.Team.NINETAILFOX) > 0;
+                    bool scp = players.Count(x => x == Smod2.API.Team.SCP) - randomizedPlayers.fc.Count > 0;
+                    bool scientist = players.Count(x => x == Smod2.API.Team.SCIENTIST) > 0;
+
+                    if (!scientist)
+                    {
+                        if (mtf)
+                        {
+                            if (!scp)
+                            {
+                                ev.Status = ROUND_END_STATUS.MTF_VICTORY;
+                            }
+                        }
+                        else
+                        {
+                            ev.Status = ROUND_END_STATUS.SCP_VICTORY;
+                        }
+                    }
+                }
             }
         }
 
@@ -126,7 +163,7 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnRoundRestart(RoundRestartEvent ev)
         {
-            Plugin.active = false;
+            BlackoutPlugin.active = false;
         }
 
         /// <summary>
@@ -135,23 +172,22 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnDoorAccess(PlayerDoorAccessEvent ev)
         {
-            if (Plugin.active)
+            if (BlackoutPlugin.active)
             {
-				if (isRoundStarted)
+				if (roundStarted)
 				{
 					switch (ev.Door.Name)
 					{
-						case "CHECKPOINT_ENT":
+                        case "HCZ_ARMORY":
+                        case "049_ARMORY":
+						    if (ev.Player.TeamRole.Role == Role.SCIENTIST &&
+						        (escapeReady || (escapeReady = Generator079.generators.All(x => x.remainingPowerup <= 0)))) //if escape is known to be ready, and if not check if it is
+                            {
+						        EscapeScientist(ev.Player);
+                            }
+
 							ev.Destroy = false;
 							break;
-
-						case "HCZ_ARMORY":
-							if ((escapeReady || (escapeReady = Generator079.generators.All(x => x.remainingPowerup <= 0))) && //if escape is known to be ready, and if not check if it is
-								ev.Player.TeamRole.Role == Role.SCIENTIST)
-							{
-								EscapeScientist(ev.Player);
-							}
-							goto case "CHECKPOINT_ENT";
 					}
 				}
 				else
@@ -167,15 +203,9 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnElevatorUse(PlayerElevatorUseEvent ev)
         {
-            if (Plugin.active)
+            if (BlackoutPlugin.active && (ev.Elevator.ElevatorType == ElevatorType.LiftA || ev.Elevator.ElevatorType == ElevatorType.LiftB))
             {
-                switch (ev.Elevator.ElevatorType)
-                {
-                    case ElevatorType.LiftA:
-                    case ElevatorType.LiftB:
-                        ev.AllowUse = false;
-                        break;
-                }
+                ev.AllowUse = false;
             }
         }
 
@@ -185,7 +215,7 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnPlayerTriggerTesla(PlayerTriggerTeslaEvent ev)
         {
-            if (Plugin.active && teslaFlicker)
+            if (BlackoutPlugin.active && teslaFlicker)
             {
                 ev.Triggerable = false;
             }
@@ -197,7 +227,7 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnPlayerHurt(PlayerHurtEvent ev)
         {
-            if (Plugin.active && ev.DamageType == DamageType.NUKE && ev.Player.TeamRole.Team == Smod2.API.Team.SCP)
+            if (BlackoutPlugin.active && ev.DamageType == DamageType.NUKE && ev.Player.TeamRole.Team == Smod2.API.Team.SCP)
             {
                 ev.Damage = 0;
             }
@@ -209,9 +239,9 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnSetRole(PlayerSetRoleEvent ev)
 		{
-			if (Plugin.active && ev.Player.TeamRole.Role == Role.SCIENTIST)
+			if (BlackoutPlugin.active)
 			{
-				SpawnScientist(ev.Player, true, true);
+				SpawnRole(ev.Player);
 			}
 		}
 
@@ -221,10 +251,10 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnTeamRespawn(TeamRespawnEvent ev)
         {
-            if (Plugin.active)
+            if (BlackoutPlugin.active)
             {
                 ev.SpawnChaos = true;
-                ev.PlayerList.Clear();
+                ev.PlayerList = new List<Player>();
             }
         }
 
@@ -234,7 +264,7 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnSummonVehicle(SummonVehicleEvent ev)
         {
-            if (Plugin.active)
+            if (BlackoutPlugin.active)
             {
                 ev.AllowSummon = false;
             }
@@ -246,7 +276,7 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnStartCountdown(WarheadStartEvent ev)
         {
-            if (Plugin.active)
+            if (BlackoutPlugin.active)
             {
                 ev.OpenDoorsAfter = false;
             }
@@ -258,7 +288,7 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnRecallZombie(PlayerRecallZombieEvent ev)
         {
-            if (Plugin.active)
+            if (BlackoutPlugin.active)
             {
                 ev.AllowRecall = false;
             }
@@ -270,10 +300,38 @@ namespace Blackout
         [Obsolete("Recommended for Smod use only.")]
         public void OnPlayerInfected(PlayerInfectedEvent ev)
         {
-            if (Plugin.active)
+            if (BlackoutPlugin.active)
             {
                 ev.InfectTime = 0;
             }
+        }
+
+        [Obsolete("Recommended for Smod use only.")]
+        public void OnCallCommand(PlayerCallCommandEvent ev)
+        {
+            if (!BlackoutPlugin.active)
+            {
+                ev.ReturnMessage = "Blackout is not running this round.";
+                return;
+            }
+
+            if (ev.Player.TeamRole.Role != Role.SCIENTIST)
+            {
+                ev.ReturnMessage = "You cannot talk to Facility Control: you are not a scientist.";
+                return;
+            }
+
+            if (ev.Command.StartsWith("fc ") && ev.Command.Length > 3)
+            {
+                ev.ReturnMessage = SendFcMessage(ev.Player, ev.Command.Substring(3));
+            }
+        }
+
+
+        public void OnIntercom(PlayerIntercomEvent ev)
+        {
+            Intercom.host.speechRemainingTime = 15f;
+            ev.CooldownTime = 10f;
         }
     }
 }

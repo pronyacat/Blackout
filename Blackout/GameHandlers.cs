@@ -14,26 +14,26 @@ namespace Blackout
 {
     public partial class EventHandlers
     {
-        private const string BroadcastExplanation = "This is Blackout, a custom gamemode. If you have never played it, press [`] or [~] for more info.";
+        private const string BroadcastExplanation = "<b><color=#f22>This is Blackout, a custom gamemode. If you have never played it, press [`] or [~] for more info.</color></b>";
         private const string ConsoleExplaination =
             "\nWelcome to Blackout!\n" +
             "In Blackout, you're either a scientist or 049. All the lights will turn off and exits have been locked. " +
             "The only way to get out is by activating all the 079 generators, then going to the Heavy Containment Zone armory " +
             "(that 3 way intersection with the chasm beneath it). " +
-            "Commander keycards will replace all existing keycards. When you escape, you will be given weapons to kill all 049s. " +
+            "O5 keycards will replace all existing keycards. When you escape, you will be given weapons to kill all 049s. " +
             "Eliminate all of them before the nuke detonates for a scientist win.";
 
         private const float Cassie049BreachDelay = 8.25f;
 
-        private bool isRoundStarted;
+        private bool roundStarted;
+        private bool slendiesFree;
         private bool escapeReady;
 
-        private Broadcast broadcast;
-        private MTFRespawn cassie;
-        private Server server;
+        private readonly List<Scp079PlayerScript> fcScripts;
 
         private Dictionary<Player, Vector> slendySpawns;
-        private (Player[] slendies, List<Player> scientists) randomizedPlayers;
+        private (List<Player> slendies, List<Player> fc, List<Player> scientists) randomizedPlayers;
+        private Scp079PlayerScript intercomFc;
         private Vector3[] uspRespawns;
 
         private Generator079[] activeGenerators;
@@ -53,11 +53,13 @@ namespace Blackout
             SetMapBoundaries();
             
             randomizedPlayers = RandomizePlayers(players);
+            fcScripts.Clear();
 
             // Set every class to scientist
             foreach (Player player in players)
             {
-                SpawnScientist(player, false, false);
+                player.ChangeRole(Role.SCIENTIST);
+                SpawnRole(player);
                 SetItems(player, waitingItems);
             }
 
@@ -65,9 +67,9 @@ namespace Blackout
             slendySpawns = GenerateSpawnPoints(randomizedPlayers.slendies);
 
             activeGenerators = new Generator079[0];
-            float powerUp = Plugin.instance.GetConfigFloat("bo_generator_time");
+            float powerUp = plugin.GetConfigFloat("bo_generator_time");
             generatorTimes = Generator079.generators.ToDictionary(x => x, x => powerUp);
-            teslas = server.Map.GetTeslaGates();
+            teslas = plugin.Server.Map.GetTeslaGates();
         }
 
         /// <summary>
@@ -77,7 +79,7 @@ namespace Blackout
         private void StartGame(float inaccuracy)
         {
             // Begins looping to display active generators
-            RefreshGeneratorsLoop(inaccuracy);
+            Refresh079Loop(inaccuracy);
 
             int maxTimeMinutes = Mathf.FloorToInt(maxTime / 60);
             float remainder = maxTime - maxTimeMinutes * 60;
@@ -86,15 +88,26 @@ namespace Blackout
             ImprisonSlendies(randomizedPlayers.slendies);
 
             foreach (Player player in randomizedPlayers.scientists)
+            {
                 SetItems(player, gameItems);
+            }
+
+            foreach (Player player in randomizedPlayers.fc)
+            {
+                player.ChangeRole(Role.SCP_079);
+            }
             
-            Timing.In(x => FreeSlendies(slendySpawns), slendyDelay - Cassie049BreachDelay);
+            Timing.In(x =>
+                {
+                    slendiesFree = true;
+                    FreeSlendies(slendySpawns);
+                }, slendyDelay - Cassie049BreachDelay);
             UpdateUspRespawns(uspRespawns);
 
-            Timing.InTicks(() => // Unlock round
+            Timing.In(x => // Unlock round
             {
-                isRoundStarted = true;
-            }, 4);
+                roundStarted = true;
+            }, 3f);
         }
 
         /// <summary>
@@ -103,7 +116,7 @@ namespace Blackout
         private void SetMapBoundaries()
         {
             // Lock LCZ elevators
-            foreach (Elevator elevator in server.Map.GetElevators())
+            foreach (Elevator elevator in plugin.Server.Map.GetElevators())
             {
                 switch (elevator.ElevatorType)
                 {
@@ -115,7 +128,7 @@ namespace Blackout
                 }
             }
 
-            List<Smod2.API.Door> doors = server.Map.GetDoors();
+            List<Smod2.API.Door> doors = plugin.Server.Map.GetDoors();
             doors.First(x => x.Name == "CHECKPOINT_ENT").Locked = true;
             doors.First(x => x.Name == "HCZ_ARMORY").Locked = true;
 
@@ -138,7 +151,7 @@ namespace Blackout
             foreach (Pickup keycard in pickups.Where(x => -1 < x.info.itemId && x.info.itemId < 12)) // All keycard items
             {
                 Pickup.PickupInfo info = keycard.info;
-                info.itemId = (int) ItemType.MTF_COMMANDER_KEYCARD;
+                info.itemId = (int) ItemType.O5_LEVEL_KEYCARD;
                 keycard.Networkinfo = info;
             }
         }
@@ -164,7 +177,7 @@ namespace Blackout
 
             Timing.In(x =>
             {
-                cassie.CallRpcPlayCustomAnnouncement("U S P NOW AVAILABLE", false);
+                plugin.Server.Map.AnnounceCustomMessage("U S P NOW AVAILABLE");
 
                 // Spawn USPs with random sight, heavy barrel, and flashlight :ok_hand:
                 foreach (Vector3 spawn in spawns)
@@ -178,7 +191,7 @@ namespace Blackout
         /// <param name="slendies">Slendies that are going to spawn.</param>
         private Dictionary<Player, Vector> GenerateSpawnPoints(IEnumerable<Player> slendies)
         {
-            List<Role> availableSpawns = Plugin.larrySpawnPoints.ToList();
+            List<Role> availableSpawns = BlackoutPlugin.slendySpawnPoints.ToList();
             return slendies.ToDictionary(x => x, x =>
             {
                 // Get role and remove it from pool
@@ -188,11 +201,11 @@ namespace Blackout
                 // Fill pool if it overflows
                 if (availableSpawns.Count == 0)
                 {
-                    availableSpawns.AddRange(Plugin.larrySpawnPoints);
+                    availableSpawns.AddRange(BlackoutPlugin.slendySpawnPoints);
                 }
 
                 // Set point to random point from role
-                return server.Map.GetRandomSpawnPoint(spawnRole);
+                return plugin.Server.Map.GetRandomSpawnPoint(spawnRole);
             });
         }
 
@@ -200,24 +213,47 @@ namespace Blackout
         /// Randomizes the slendy players and scientist players.
         /// </summary>
         /// <param name="players">All the players that are playing the game.</param>
-        private (Player[] slendies, List<Player> scientists) RandomizePlayers(IEnumerable<Player> players)
+        private (List<Player> slendies, List<Player> fc, List<Player> scientists) RandomizePlayers(IEnumerable<Player> players)
         {
-            List<Player> possibleSlendies = players.ToList();
+            List<Player> possibleSpecials = players.ToList();
 
-            // Get percentage of 049s based on players
-            int slendyCount = Mathf.FloorToInt(possibleSlendies.Count * percentSlendies);
-            if (slendyCount == 0)
-                slendyCount = 1;
-
-            // Get random 049s
-            Player[] slendies = new Player[slendyCount];
-            for (int i = 0; i < slendyCount; i++)
+            if (possibleSpecials.Count < 1)
             {
-                slendies[i] = possibleSlendies[Random.Range(0, possibleSlendies.Count)];
-                possibleSlendies.Remove(slendies[i]);
+                return (new List<Player>(), new List<Player>(), possibleSpecials);
             }
 
-            return (slendies, possibleSlendies);
+            // Get percentage of 049s based on players
+            int slendyCount = Mathf.CeilToInt(possibleSpecials.Count * percentSlendies);
+
+            // Get random 049s
+            List<Player> slendies = new List<Player>(slendyCount);
+            for (int i = 0; i < slendyCount; i++)
+            {
+                Player slendy = possibleSpecials[Random.Range(0, possibleSpecials.Count)];
+
+                slendies.Add(slendy);
+                possibleSpecials.Remove(slendy);
+            }
+
+            if (possibleSpecials.Count < 2)
+            {
+                return (slendies, new List<Player>(), possibleSpecials);
+            }
+
+            // Get percentage of FCs based on players
+            int fcCount = Mathf.CeilToInt(possibleSpecials.Count * percentFc);
+
+            // Get random FCs
+            List<Player> fcs = new List<Player>(fcCount);
+            for (int i = 0; i < fcCount; i++)
+            {
+                Player fc = possibleSpecials[Random.Range(0, possibleSpecials.Count)];
+
+                fcs.Add(fc);
+                possibleSpecials.Remove(fc);
+            }
+
+            return (slendies, fcs, possibleSpecials);
         }
 
         /// <summary>
@@ -231,7 +267,7 @@ namespace Blackout
                 slendy.ChangeRole(Role.SCP_049, false, false);
 
                 //Teleport to 106 as a prison
-                slendy.Teleport(server.Map.GetRandomSpawnPoint(Role.SCP_106));
+                slendy.Teleport(plugin.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
             }
         }
 
@@ -241,7 +277,7 @@ namespace Blackout
         /// <param name="slendies">Slendies and their corresponding spawn points.</param>
         private void FreeSlendies(Dictionary<Player, Vector> slendies)
         {
-            cassie.CallRpcPlayCustomAnnouncement("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS", false);
+            plugin.Server.Map.AnnounceCustomMessage("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS");
 
             Timing.In(x =>
             {
@@ -254,26 +290,51 @@ namespace Blackout
         /// Spawns a scientist with gamemode spawn and items.
         /// </summary>
         /// <param name="player">Player to spawn.</param>
-        /// <param name="isScientist">If the player is already a scientist.</param>
-        /// <param name="initInv">If items should be given to the player.</param>
-        private void SpawnScientist(Player player, bool isScientist, bool initInv)
+        private void SpawnRole(Player player)
         {
-            if (!isScientist)
-                player.ChangeRole(Role.SCIENTIST);
-
-            player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
-
-            Timing.Next(() =>
+            switch (player.TeamRole.Role)
             {
-                if (!isRoundStarted)
-                {
-                    SetItems(player, waitingItems);
-                }
-                else if (initInv)
-                {
-                    SetItems(player, gameItems);
-                }
-            });
+                case Role.SCIENTIST:
+                    player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+
+                    if (roundStarted)
+                    {
+                        player.PersonalBroadcast(10, "You are a <color=#FFFF7C>scientist</color>.\nDodge <color=#f00>SCP-049</color> and escape by\nworking with <color=#0096FF>Facility Control</color>.", false);
+
+                        Timing.Next(() => SetItems(player, gameItems));
+                    }
+                    else
+                    {
+                        Timing.Next(() => SetItems(player, waitingItems));
+                    }
+                    break;
+
+                case Role.SCP_049:
+                    player.PersonalBroadcast(10, "You are <color=#f00>SCP-049</color>.\nPrevent <color=#FFFF7C>scientists</color> from escaping\nand hide from <color=#0096FF>Facility Control</color>.", false);
+
+                    player.Teleport(slendiesFree
+                        ? PluginManager.Manager.Server.Map.GetRandomSpawnPoint(BlackoutPlugin.slendySpawnPoints[Random.Range(0, BlackoutPlugin.slendySpawnPoints.Length)])
+                        : PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
+                    break;
+
+                case Role.SCP_079:
+                    player.PersonalBroadcast(10, "You are <color=#0096FF>Facility Control</color>.\nWork with <color=#FFFF7C>scientists</color> to help them\nescape and kill <color=#f00>SCP-049</color>.", false);
+
+                    Scp079PlayerScript fcScript = ((GameObject)player.GetGameObject()).GetComponent<Scp079PlayerScript>();
+
+                    if (!randomizedPlayers.fc.Contains(player))
+                    {
+                        randomizedPlayers.slendies.Remove(player);
+                        randomizedPlayers.scientists.Remove(player);
+
+                        randomizedPlayers.fc.Add(player);
+                        fcScripts.Add(fcScript);
+                    }
+                    
+                    fcScript.NetworkmaxMana = 49.9f;
+                    fcScript.NetworkcurLvl = 4;
+                    break;
+            }
         }
 
         /// <summary>
@@ -362,7 +423,17 @@ namespace Blackout
 
             SetItems(player, escapeItems);
 
-            server.Round.Stats.ScientistsEscaped++;
+            plugin.Server.Round.Stats.ScientistsEscaped++;
+        }
+
+        private string SendFcMessage(Player sender, string message)
+        {
+            foreach (Player fc in randomizedPlayers.fc)
+            {
+                fc.PersonalBroadcast(5, $"<color=#FFFF7C>{sender.Name}</color>: {message}", false);
+            }
+
+            return $"<color=#0f0>Sent message to {randomizedPlayers.fc.Count} Facility Control member{(randomizedPlayers.fc.Count == 1 ? "s" : "")}.</color>";
         }
 
         /// <summary>
@@ -422,7 +493,7 @@ namespace Blackout
 
             if (!string.IsNullOrWhiteSpace(cassieLine))
             {
-                cassie.CallRpcPlayCustomAnnouncement(cassieLine, false);
+                plugin.Server.Map.AnnounceCustomMessage(cassieLine);
             }
         }
 
@@ -457,7 +528,7 @@ namespace Blackout
         /// Broadcasts when a generator begins powering up
         /// </summary>
         /// <param name="inaccuracy">Timing offset</param>
-        private void RefreshGeneratorsLoop(float inaccuracy = 0)
+        private void Refresh079Loop(float inaccuracy = 0)
         {
             Generator079[] currentActiveGenerators = Generator079.generators.Where(x => x.isTabletConnected).ToArray();
 
@@ -471,19 +542,69 @@ namespace Blackout
                 {
                     generator.NetworkremainingPowerup = generatorTimes[generator];
 
-                    broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator.curRoom)} powering up...", 5, false);
+                    foreach (Player player in randomizedPlayers.slendies.Concat(randomizedPlayers.scientists))
+                    {
+                        player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {GetGeneratorName(generator.curRoom)} powering up...</color></b>", false);
+                    }
                 }
 
                 foreach (Generator079 generator in newlyShutdown)
                 {
                     generatorTimes[generator] = generator.NetworkremainingPowerup;
 
-                    if (generator.NetworkremainingPowerup > 0)
-                        broadcast.CallRpcAddElement($"Generator {GetGeneratorName(generator.curRoom)} was shut down.", 5, false);
+                    foreach (Player player in randomizedPlayers.slendies.Concat(randomizedPlayers.scientists))
+                    {
+                        player.PersonalBroadcast(5, generator.remainingPowerup > 0
+                                ? $"<b><color=#ccc>Generator {GetGeneratorName(generator.curRoom)} was shut down.</color></b>"
+                                : $"<b><color=#ccc>Generator {GetGeneratorName(generator.curRoom)} has successfully powered up.</color></b>",
+                            false);
+                    }
                 }
             }
 
-            Timing.In(RefreshGeneratorsLoop, generatorRefreshRate + inaccuracy);
+            if (intercomFc != null && intercomFc.Speaker == null)
+            {
+                Intercom.host.RequestTransmission(null);
+                intercomFc = null;
+            }
+
+            foreach (Scp079PlayerScript fc in fcScripts)
+            {
+                fc.NetworkcurMana = Mathf.Min(fc.NetworkcurMana, fc.maxMana);
+
+                plugin.Info($"Speaker: {fc.Speaker ?? "NULL (null default)"}");
+
+                // If the Facility Control member is talking
+                if (!string.IsNullOrWhiteSpace(fc.Speaker))
+                {
+                    // If no one is talking, route them to intercom
+                    if (intercomFc == null)
+                    {
+                        plugin.Info("Routing through to intercom.");
+
+                        intercomFc = fc;
+                        fc.GetComponent<CharacterClassManager>().smAllowIntercom = true;
+                        Intercom.host.RequestTransmission(fc.gameObject);
+                    }
+                    // If they are not routed through to intercom, prevent them from talking
+                    else if (fc != intercomFc)
+                    {
+                        plugin.Info("Forcing them to stop talking.");
+
+                        fc.NetworkcurSpeaker = null;
+                    }
+                }
+                // If they are not talking and they are the current intercom speaker, stop talking
+                else if (fc == intercomFc)
+                {
+                    plugin.Info("Stopping intercom.");
+
+                    fc.GetComponent<CharacterClassManager>().smAllowIntercom = false;
+                    intercomFc = null;
+                }
+            }
+
+            Timing.In(Refresh079Loop, generatorRefreshRate + inaccuracy);
         }
 
         /// <summary>

@@ -10,11 +10,14 @@ namespace Blackout
         public string[] OnCall(ICommandSender sender, string[] args)
         {
             bool valid = sender is Server;
-
-            Player player = sender as Player;
-            if (!valid && player != null)
+            Player player = null;
+            if (!valid)
             {
-                valid = Plugin.validRanks.Contains(player.GetRankName());
+                player = sender as Player;
+                if (player != null)
+                {
+                    valid = BlackoutPlugin.validRanks.Contains(player.GetRankName());
+                }
             }
 
 			if (valid)
@@ -24,36 +27,41 @@ namespace Blackout
 					switch (args[0].ToLower())
 					{
 						case "toggle":
-							Plugin.toggled = !Plugin.toggled;
-							Plugin.activeNextRound = Plugin.toggled;
+							BlackoutPlugin.toggled = !BlackoutPlugin.toggled;
+							BlackoutPlugin.activeNextRound = BlackoutPlugin.toggled;
 
 							return new[]
 							{
-								$"Blackout has been toggled {(Plugin.toggled ? "on" : "off")}."
+								$"Blackout has been toggled {(BlackoutPlugin.toggled ? "on" : "off")}."
 							};
-					}
-				}
-				else
-				{
-				    if (!Plugin.toggled)
-					{
-						Plugin.activeNextRound = !Plugin.activeNextRound;
-						return new[]
-						{
-							$"Blackout has been {(Plugin.activeNextRound ? "enabled" : "disabled")} for next round."
-						};
-					}
 
-				    return new[]
-				    {
-				        "Blackout is already toggled on."
-				    };
+                        default:
+                            return new[]
+                            {
+                                "Invalid argument"
+                            };
+					}
 				}
+
+			    if (!BlackoutPlugin.toggled)
+			    {
+			        BlackoutPlugin.activeNextRound = !BlackoutPlugin.activeNextRound;
+
+			        return new[]
+			        {
+			            $"Blackout has been {(BlackoutPlugin.activeNextRound ? "enabled" : "disabled")} for next round."
+			        };
+			    }
+
+			    return new[]
+			    {
+			        "Blackout is already toggled on."
+			    };
 			}
 
 			return new[]
 			{
-				$"You (rank {player?.GetRankName() ?? "NULL"}) do not have permissions to that command."
+				$"You (rank {player?.GetRankName() ?? "Server"}) do not have permissions to that command."
 			};
 		}
 
