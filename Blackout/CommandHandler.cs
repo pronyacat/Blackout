@@ -7,6 +7,13 @@ namespace Blackout
 {
     public class CommandHandler : ICommandHandler
     {
+        private BlackoutPlugin plugin;
+
+        public CommandHandler(BlackoutPlugin plugin)
+        {
+            this.plugin = plugin;
+        }
+
         public string[] OnCall(ICommandSender sender, string[] args)
         {
             bool valid = sender is Server;
@@ -16,7 +23,7 @@ namespace Blackout
                 player = sender as Player;
                 if (player != null)
                 {
-                    valid = BlackoutPlugin.validRanks.Contains(player.GetRankName());
+                    valid = plugin.ValidRanks.Contains(player.GetRankName());
                 }
             }
 
@@ -27,12 +34,12 @@ namespace Blackout
 					switch (args[0].ToLower())
 					{
 						case "toggle":
-							BlackoutPlugin.toggled = !BlackoutPlugin.toggled;
-							BlackoutPlugin.activeNextRound = BlackoutPlugin.toggled;
+						    plugin.Toggled = !plugin.Toggled;
+						    plugin.ActiveNextRound = plugin.Toggled;
 
 							return new[]
 							{
-								$"Blackout has been toggled {(BlackoutPlugin.toggled ? "on" : "off")}."
+								$"Blackout has been toggled {(plugin.Toggled ? "on" : "off")}."
 							};
 
                         default:
@@ -43,13 +50,13 @@ namespace Blackout
 					}
 				}
 
-			    if (!BlackoutPlugin.toggled)
+			    if (!plugin.Toggled)
 			    {
-			        BlackoutPlugin.activeNextRound = !BlackoutPlugin.activeNextRound;
+			        plugin.ActiveNextRound = !plugin.ActiveNextRound;
 
 			        return new[]
 			        {
-			            $"Blackout has been {(BlackoutPlugin.activeNextRound ? "enabled" : "disabled")} for next round."
+			            $"Blackout has been {(plugin.ActiveNextRound ? "enabled" : "disabled")} for next round."
 			        };
 			    }
 

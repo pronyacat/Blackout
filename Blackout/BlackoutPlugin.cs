@@ -19,19 +19,35 @@ namespace Blackout
         SmodRevision = 2)]
     public class BlackoutPlugin : Plugin
     {
-        public static Role[] slendySpawnPoints;
+        public Role[] SlendySpawnPoints { get; private set; }
 
-        public static bool active;
-		public static bool toggled;
-        public static bool activeNextRound;
+        public bool Active { get; set; }
+        public bool Toggled { get; set; }
+        public bool ActiveNextRound { get; set; }
 
-        public static bool roundLock;
+        public bool RoundLocked { get; set; }
 
-        public static string[] validRanks;
+        public string[] ValidRanks { get; private set; }
+        public int[] WaitingItems { get; private set; }
+        public int[] GameItems { get; private set; }
+        public int[] EscapeItems { get; private set; }
+
+        public float PercentSlendies { get; private set; }
+        public float PercentFacilityControl { get; private set; }
+
+        public float StartDelay { get; private set; }
+        public float SlendyReleaseDelay { get; private set; }
+        public float ScpVictoryTime { get; private set; }
+        public float UspTime { get; private set; }
+        public float FlickerlightDuration { get; private set; }
+		public float GeneratorTime { get; private set; }
+        public int[] MinuteAnnouncements { get; private set; }
+
+        public bool TeslaFlicker { get; private set; }
 
         public override void Register()
         {
-            slendySpawnPoints = new[]
+            SlendySpawnPoints = new[]
             {
                 Role.SCP_096,
                 Role.SCP_939_53,
@@ -70,7 +86,6 @@ namespace Blackout
             AddConfig(new ConfigSetting("bo_max_time", 720f, SettingType.FLOAT, true, "Time before the round ends."));
 			AddConfig(new ConfigSetting("bo_usp_time", 300f, SettingType.FLOAT, true, "Time until a USP spawns in nuke armory."));
             AddConfig(new ConfigSetting("bo_generator_time", 60f, SettingType.FLOAT, true, "Time required to engage a generator."));
-            AddConfig(new ConfigSetting("bo_generator_refresh", 1f, SettingType.FLOAT, true, "Refresh rate of generator resuming and broadcasts."));
             AddConfig(new ConfigSetting("bo_flickerlight_duration", 0f, SettingType.FLOAT, true, "Amount of time between light flickers."));
             AddConfig(new ConfigSetting("bo_announce_times", new[]
             {
@@ -85,13 +100,30 @@ namespace Blackout
             
             Timing.Init(this);
 
-            AddEventHandlers(new EventHandlers(this), Priority.High); 
-            // LASER: HIGH PRIORITY IS NECESSARY
-            // Say Serpents Hand was going to spawn in and it got ran before ours. Bam. Now people are serpents hand and hold up the round.
-            // Say someone has a door bypass plugin. Bam. Someones out of heavy containment.
-            // PLEASE DO NOT ANGRYLASERBOI US
+            AddEventHandlers(new EventHandlers(this), Priority.High);
+            AddCommand("blackout", new CommandHandler(this));
+        }
 
-            AddCommand("blackout", new CommandHandler());
+        public void RefreshConfig()
+        {
+            ValidRanks = GetConfigList("bo_ranks");
+
+            WaitingItems = GetConfigIntList("bo_items_wait");
+            GameItems = GetConfigIntList("bo_items_start");
+            EscapeItems = GetConfigIntList("bo_items_escape");
+
+            PercentSlendies = GetConfigFloat("bo_slendy_percent");
+            PercentFacilityControl = GetConfigFloat("bo_fc_percent");
+
+            StartDelay = GetConfigFloat("bo_start_delay");
+            SlendyReleaseDelay = GetConfigFloat("bo_slendy_delay");
+            ScpVictoryTime = GetConfigFloat("bo_max_time");
+            UspTime = GetConfigFloat("bo_usp_time");
+            FlickerlightDuration = GetConfigFloat("bo_flickerlight_duration");
+	        GeneratorTime = GetConfigFloat("bo_generator_time");
+			MinuteAnnouncements = GetConfigIntList("bo_announce_times");
+
+            TeslaFlicker = GetConfigBool("bo_tesla_flicker");
         }
 
         public override void OnEnable() { }
