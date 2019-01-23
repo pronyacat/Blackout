@@ -55,45 +55,167 @@ namespace Blackout
 			slendies = new Dictionary<int, Player>();
 			fcs = new Dictionary<int, Player>();
         }
-        
-        public void OnWaitingForPlayers(WaitingForPlayersEvent ev)
+
+	    private IEnumerable<float> TimingSetItems(float delay, Player player, IEnumerable<int> items)
+	    {
+		    yield return delay;
+
+		    SetItems(player, items);
+	    }
+
+		private IEnumerable<float> TimingSpawnUsps(float delay, IEnumerable<Vector3> spawns, Inventory inventory, WeaponManager.Weapon usp)
+	    {
+		    yield return delay;
+
+		    plugin.Server.Map.AnnounceCustomMessage("U S P NOW AVAILABLE");
+
+		    // Spawn USPs with random sight, heavy barrel, and flashlight :ok_hand:
+		    foreach (Vector3 spawn in spawns)
+		    {
+			    inventory.SetPickup((int)ItemType.USP, usp.maxAmmo, spawn, Quaternion.Euler(0, 0, 0), Random.Range(0, usp.mod_sights.Length), 2, 1);
+		    }
+	    }
+
+	    public IEnumerable<float> TimingRoundStart()
+	    {
+		    const float cassieDelay = 8.6f;
+		    const float flickerDelay = 0.4f;
+
+		    // Cassie and flicker delay is subtracted in order to start the round by that time
+		    yield return plugin.StartDelay - (cassieDelay + flickerDelay);
+
+		    plugin.Server.Map.AnnounceCustomMessage("LIGHT SYSTEM SCP079RECON6");
+		    yield return cassieDelay;
+
+		    Timing.Run(TimingBlackoutFlicker());
+
+		    int maxTimeMinutes = Mathf.FloorToInt(plugin.ScpVictoryTime / 60);
+		    float remainder = plugin.ScpVictoryTime - maxTimeMinutes * 60;
+		    Timing.Run(TimingTimeAnnouncements(remainder, maxTimeMinutes));
+
+		    foreach (Player slendy in slendies.Values)
+		    {
+			    slendy.ChangeRole(Role.SCP_049, false, false);
+
+			    //Teleport to 106 as a prison
+			    slendy.Teleport(plugin.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
+
+			    slendy.PersonalBroadcast(5, $"<color=#ccc>You will be free in</color> {plugin.SlendyReleaseDelay} <color=#ccc>seconds.</color>", false);
+		    }
+
+		    foreach (Player player in scientists.Values)
+		    {
+			    SetItems(player, plugin.GameItems);
+		    }
+
+		    foreach (Player player in fcs.Values)
+		    {
+			    player.ChangeRole(Role.SCP_079);
+		    }
+
+		    Timing.Run(TimingReleaseSlendies(plugin.SlendyReleaseDelay - Cassie049BreachDelay));
+		    UpdateUspRespawns(uspRespawns);
+
+		    yield return 2f;
+
+		    roundStarted = true;
+	    }
+
+	    private IEnumerable<float> TimingReleaseSlendies(float delay)
+	    {
+		    yield return delay;
+		    
+			plugin.Server.Map.AnnounceCustomMessage("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS");
+			yield return Cassie049BreachDelay;
+
+		    slendiesFree = true;
+			foreach (KeyValuePair<Player, Vector> slendy in slendySpawns)
+		    {
+			    slendy.Key.Teleport(slendy.Value);
+		    }
+		}
+
+	    /// <summary>
+	    /// Causes a blackout to happen in all of HCZ.
+	    /// </summary>
+	    public IEnumerable<float> TimingBlackoutFlicker()
+	    {
+		    while (true)
+		    {
+			    Generator079.mainGenerator.CallRpcOvercharge();
+
+			    if (plugin.TeslaFlicker)
+			    {
+				    foreach (Smod2.API.TeslaGate tesla in teslas)
+				    {
+					    tesla.Activate(true);
+				    }
+			    }
+
+			    yield return 11 + plugin.FlickerlightDuration;
+		    }
+	    }
+
+	    /// <summary>
+	    /// Announcements for how much time is left and nuke at the last minute of the game
+	    /// </summary>
+	    /// <param name="waitTime">Amount of time before the countdown begins.</param>
+	    /// <param name="minutes">Minutes remaining</param>
+	    public IEnumerable<float> TimingTimeAnnouncements(float waitTime, int minutes)
+	    {
+		    yield return waitTime;
+
+		    for (int i = 0; i > 0; i++)
+		    {
+			    string cassieLine = plugin.MinuteAnnouncements.Contains(minutes) ? $"{minutes} MINUTE{(minutes == 1 ? "" : "S")} REMAINING" : "";
+
+			    if (minutes == 1)
+			    {
+				    if (!string.IsNullOrWhiteSpace(cassieLine))
+				    {
+					    cassieLine += " . ";
+				    }
+
+				    const float nukeStart = 50f; // Makes sure that the nuke starts when the siren is almost silent so it sounds like it just started
+
+				    plugin.Server.Map.AnnounceCustomMessage(cassieLine + "ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED");
+				    yield return 60f - nukeStart;
+
+				    AlphaWarheadController.host.StartDetonation();
+				    AlphaWarheadController.host.NetworktimeToDetonation = nukeStart;
+
+				    yield return nukeStart;
+			    }
+			    else
+			    {
+				    plugin.Server.Map.AnnounceCustomMessage(cassieLine);
+				    yield return 60f;
+			    }
+		    }
+	    }
+
+		public void OnWaitingForPlayers(WaitingForPlayersEvent ev)
 		{
 			plugin.RefreshConfig();
 		}
-        
-        public void OnRoundStart(RoundStartEvent ev)
-        {
-            #region Check and set if active
-            if (!plugin.ActiveNextRound && !plugin.Toggled)
-                return;
 
-            plugin.Active = true;
-            plugin.ActiveNextRound = false;
+	    public void OnRoundStart(RoundStartEvent ev)
+	    {
+		    if (!plugin.ActiveNextRound && !plugin.Toggled)
+		    {
+			    return;
+		    }
+
+		    plugin.Active = true;
+		    plugin.ActiveNextRound = false;
 		    roundStarted = false;
-            slendiesFree = false;
-            escapeReady = false;
-            #endregion
-            
-            List<Player> allPlayers = plugin.Server.GetPlayers();
-            GamePrep(allPlayers);
+		    slendiesFree = false;
+		    escapeReady = false;
+			
+		    GamePrep(plugin.Server.GetPlayers());
 
-            const float cassieDelay = 8.6f;
-            const float flickerDelay = 0.4f;
-
-            // Announcements
-            Timing.In(x =>
-            {
-                plugin.Server.Map.AnnounceCustomMessage("LIGHT SYSTEM SCP079RECON6");
-
-                // Blackout
-                Timing.In(y =>
-                {
-                    BlackoutLoop(y);
-
-                    Timing.In(StartGame, flickerDelay + y); // 0.4 IS VERY SPECIFIC. DO NOT CHANGE, MAY CAUSE LIGHT FLICKER TO NOT CORRESPOND WITH ROLE CHANGE
-                }, cassieDelay + x); // 8.6 IS VERY SPECIFIC. DO NOT CHANGE, MAY CAUSE BLACKOUT TO BE UNCOORDINATED WITH CASSIE
-            }, plugin.StartDelay - (cassieDelay + flickerDelay)); // Cassie and flicker delay is subtracted in order to start the round by that time
-        }
+			Timing.Run(TimingRoundStart());
+	    }
         
         public void OnCheckRoundEnd(CheckRoundEndEvent ev)
         {
@@ -205,7 +327,67 @@ namespace Blackout
 		{
 			if (plugin.Active)
 			{
-				SpawnRole(ev.Player, ev.Role);
+				switch (ev.Role)
+				{
+					case Role.SCIENTIST:
+						ev.Player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+
+						int[] items;
+						if (roundStarted)
+						{
+							ev.Player.PersonalBroadcast(10, "You are a <color=#FFFF7C>scientist</color>.\nDodge <color=#f00>SCP-049</color> and escape by\nworking with <color=#0096FF>Facility Control</color>.", false);
+
+							if (!scientists.ContainsKey(ev.Player.PlayerId))
+							{
+								fcs.Remove(ev.Player.PlayerId);
+								slendies.Remove(ev.Player.PlayerId);
+
+								scientists.Add(ev.Player.PlayerId, ev.Player);
+							}
+
+							items = plugin.GameItems;
+						}
+						else
+						{
+							items = plugin.WaitingItems;
+						}
+
+						ev.Items = items.Cast<ItemType>().ToList();
+						break;
+
+					case Role.SCP_049:
+						ev.Player.PersonalBroadcast(10, "You are <color=#f00>SCP-049</color>.\nPrevent <color=#FFFF7C>scientists</color> from escaping\nand hide from <color=#0096FF>Facility Control</color>.", false);
+
+						if (!slendies.ContainsKey(ev.Player.PlayerId))
+						{
+							fcs.Remove(ev.Player.PlayerId);
+							scientists.Remove(ev.Player.PlayerId);
+
+							slendies.Add(ev.Player.PlayerId, ev.Player);
+						}
+
+						ev.Player.Teleport(slendiesFree
+							? PluginManager.Manager.Server.Map.GetRandomSpawnPoint(plugin.SlendySpawnPoints[Random.Range(0, plugin.SlendySpawnPoints.Length)])
+							: PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
+						break;
+
+					case Role.SCP_079:
+						ev.Player.PersonalBroadcast(10, "You are <color=#0096FF>Facility Control</color>.\nWork with <color=#FFFF7C>scientists</color> to help them\nescape and kill <color=#f00>SCP-049</color>.", false);
+
+						if (!fcs.ContainsKey(ev.Player.PlayerId))
+						{
+							scientists.Remove(ev.Player.PlayerId);
+							slendies.Remove(ev.Player.PlayerId);
+
+							fcs.Add(ev.Player.PlayerId, ev.Player);
+						}
+
+						ev.Player.Scp079Data.Level = 1;
+						ev.Player.Scp079Data.APPerSecond = 4f;
+						ev.Player.Scp079Data.MaxAP = 80f;
+						ev.Player.Scp079Data.ExpToLevelUp = 999;
+						break;
+				}
 			}
 		}
         
@@ -278,7 +460,7 @@ namespace Blackout
         {
             Pickup[] pickups = Object.FindObjectsOfType<Pickup>();
 
-            uspRespawns = UspSpawnPoints(pickups).ToArray();
+            uspRespawns = pickups.Where(x => x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE).Select(x => x.info.position).ToArray();
             UpdateItems(pickups);
             SetMapBoundaries();
             RandomizePlayers(players);
@@ -287,13 +469,10 @@ namespace Blackout
 			foreach (Player player in players)
             {
                 player.ChangeRole(Role.SCIENTIST);
-                SpawnRole(player, Role.SCIENTIST);
-                SetItems(player, plugin.WaitingItems);
             }
 
             // Set 049 spawn points
             slendySpawns = GenerateSpawnPoints(slendies.Values);
-			
             teslas = plugin.Server.Map.GetTeslaGates();
 
             // Inform players
@@ -302,41 +481,6 @@ namespace Blackout
 	        {
 				player.SendConsoleMessage(ConsoleExplaination);
 			}
-        }
-
-        /// <summary>
-        /// Begins the 
-        /// </summary>
-        /// <param name="inaccuracy">Timing offset.</param>
-        public void StartGame(float inaccuracy)
-        {
-            int maxTimeMinutes = Mathf.FloorToInt(plugin.ScpVictoryTime / 60);
-            float remainder = plugin.ScpVictoryTime - maxTimeMinutes * 60;
-            Timing.In(x => AnnounceTimeLoops(maxTimeMinutes - 1, x), remainder);
-
-	        ImprisonSlendies(slendies.Values);
-
-            foreach (Player player in scientists.Values)
-            {
-                SetItems(player, plugin.GameItems);
-            }
-
-            foreach (Player player in fcs.Values)
-            {
-                player.ChangeRole(Role.SCP_079); //todo: this somehow mutates randomizedPlayers.fc in OnSetRole and throws a "Collection was modified, enumeration operation may not execute" in foreach
-            }
-
-            Timing.In(x =>
-            {
-                slendiesFree = true;
-                FreeSlendies(slendySpawns);
-            }, plugin.SlendyReleaseDelay - Cassie049BreachDelay);
-            UpdateUspRespawns(uspRespawns);
-
-            Timing.In(x => // Unlock round
-            {
-                roundStarted = true;
-            }, 2f);
         }
 
         /// <summary>
@@ -402,19 +546,8 @@ namespace Blackout
         public void UpdateUspRespawns(IEnumerable<Vector3> spawns)
         {
             GameObject host = GameObject.Find("Host");
-            Inventory inventory = host.GetComponent<Inventory>();
-            WeaponManager.Weapon usp = host.GetComponent<WeaponManager>().weapons.First(x => x.inventoryID == (int)ItemType.USP);
 
-            Timing.In(x =>
-            {
-                plugin.Server.Map.AnnounceCustomMessage("U S P NOW AVAILABLE");
-
-                // Spawn USPs with random sight, heavy barrel, and flashlight :ok_hand:
-	            foreach (Vector3 spawn in spawns)
-	            {
-		            inventory.SetPickup((int)ItemType.USP, usp.maxAmmo, spawn, Quaternion.Euler(0, 0, 0), Random.Range(0, usp.mod_sights.Length), 2, 1);
-				}
-            }, plugin.UspTime);
+            Timing.Run(TimingSpawnUsps(plugin.UspTime, spawns, host.GetComponent<Inventory>(), host.GetComponent<WeaponManager>().weapons.First(x => x.inventoryID == (int)ItemType.USP)));
         }
 
         /// <summary>
@@ -505,21 +638,6 @@ namespace Blackout
         }
 
         /// <summary>
-        /// Teleports slendies to their spawn points.
-        /// </summary>
-        /// <param name="slendies">Slendies and their corresponding spawn points.</param>
-        public void FreeSlendies(Dictionary<Player, Vector> slendies)
-        {
-            plugin.Server.Map.AnnounceCustomMessage("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS");
-
-            Timing.In(x =>
-            {
-                foreach (KeyValuePair<Player, Vector> slendy in slendies)
-                    slendy.Key.Teleport(slendy.Value);
-            }, Cassie049BreachDelay);
-        }
-
-        /// <summary>
         /// Spawns a scientist with gamemode spawn and items.
         /// </summary>
         /// <param name="player">Player to spawn.</param>
@@ -530,6 +648,7 @@ namespace Blackout
                 case Role.SCIENTIST:
                     player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
 
+	                int[] items;
                     if (roundStarted)
                     {
                         player.PersonalBroadcast(10, "You are a <color=#FFFF7C>scientist</color>.\nDodge <color=#f00>SCP-049</color> and escape by\nworking with <color=#0096FF>Facility Control</color>.", false);
@@ -542,12 +661,14 @@ namespace Blackout
 		                    scientists.Add(player.PlayerId, player);
 	                    }
 
-						Timing.Next(() => SetItems(player, plugin.GameItems));
+	                    items = plugin.GameItems;
                     }
                     else
                     {
-                        Timing.Next(() => SetItems(player, plugin.WaitingItems));
+	                    items = plugin.WaitingItems;
                     }
+
+	                Timing.Run(TimingSetItems(0, player, items));
                     break;
 
                 case Role.SCP_049:
@@ -596,7 +717,7 @@ namespace Blackout
             Inventory inv = playerObj.GetComponent<Inventory>();
             WeaponManager manager = playerObj.GetComponent<WeaponManager>();
 
-            GameConsole.Console console = Object.FindObjectOfType<Console>();
+            Console console = Object.FindObjectOfType<Console>();
             foreach (int item in items)
             {
                 int i = WeaponManagerIndex(manager, item);
@@ -725,47 +846,6 @@ namespace Blackout
         }
 
         /// <summary>
-        /// Announcements for how much time is left and nuke at the last minute of the game
-        /// </summary>
-        /// <param name="minutes">Minutes remaining</param>
-        /// <param name="inaccuracy">Timing offset</param>
-        public void AnnounceTimeLoops(int minutes, float inaccuracy = 0)
-        {
-            if (minutes == 0)
-            {
-                return;
-            }
-
-            string cassieLine = plugin.MinuteAnnouncements.Contains(minutes) ? $"{minutes} MINUTE{(minutes == 1 ? "" : "S")} REMAINING" : "";
-
-            if (minutes == 1)
-            {
-                if (!string.IsNullOrWhiteSpace(cassieLine))
-                {
-                    cassieLine += " . ";
-                }
-
-                cassieLine += "ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED";
-                const float nukeStart = 50f; // Makes sure that the nuke starts when the siren is almost silent so it sounds like it just started
-
-                Timing.In(x =>
-                {
-                    AlphaWarheadController.host.StartDetonation();
-                    AlphaWarheadController.host.NetworktimeToDetonation = nukeStart;
-                }, 60 - nukeStart);
-            }
-            else
-            {
-                Timing.In(x => AnnounceTimeLoops(--minutes, x), 60 + inaccuracy);
-            }
-
-            if (!string.IsNullOrWhiteSpace(cassieLine))
-            {
-                plugin.Server.Map.AnnounceCustomMessage(cassieLine);
-            }
-        }
-
-        /// <summary>
         /// Gets a user-friendly generator name from the room name
         /// </summary>
         /// <param name="roomName">Room that the generator is in.</param>
@@ -789,24 +869,6 @@ namespace Blackout
 
                 default:
                     return roomName;
-            }
-        }
-
-        /// <summary>
-        /// Causes a blackout to happen in all of HCZ.
-        /// </summary>
-        /// <param name="inaccuracy">Timing offset.</param>
-        public void BlackoutLoop(float inaccuracy = 0)
-        {
-            Timing.In(BlackoutLoop, 11 + plugin.FlickerlightDuration + inaccuracy);
-
-            Generator079.generators[0].CallRpcOvercharge();
-            if (plugin.TeslaFlicker)
-            {
-	            foreach (Smod2.API.TeslaGate tesla in teslas)
-	            {
-		            tesla.Activate(true);
-				}
             }
         }
 

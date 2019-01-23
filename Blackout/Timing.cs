@@ -33,11 +33,10 @@ namespace scp4aiur
         /// <summary>
         /// Queues a job.
         /// </summary>
-        /// <param name="item">Job to queue.</param>
-        private static int Queue(QueueItem item)
+        public static int Run(IEnumerable<float> method, bool persist = false)
         {
             int id = jobId++;
-            jobs.Add(id, item);
+            jobs.Add(id, new QueueItem(method, persist));
 
             return id;
         }
@@ -52,45 +51,15 @@ namespace scp4aiur
         }
 
         /// <summary>
-        /// Queues a job for the next tick.
-        /// </summary>
-        /// <param name="action">Job to execute.</param>
-        public static int Next(Action action, bool persist = false)
-        {
-            return Queue(new NextTickQueue(action, persist));
-        }
-
-        /// <summary>
-        /// Queues a job to run in a certain amount of ticks.
-        /// </summary>
-        /// <param name="action">Job to execute.</param>
-        /// <param name="ticks">Number of ticks to wait.</param>
-        public static int InTicks(Action action, int ticks, bool persist = false)
-        {
-            return Queue(new AfterTicksQueue(action, ticks, persist));
-        }
-
-        /// <summary>
-        /// Queues a job to run in a certain amount of seconds
-        /// </summary>
-        /// <param name="action">Job to execute.</param>
-        /// <param name="seconds">Number of seconds to wait.</param>
-        public static int In(Action<float> action, float seconds, bool persist = false)
-        {
-            return Queue(new TimerQueue(action, seconds, persist));
-        }
-
-        /// <summary>
         /// <para>DO NOT USE</para>
         /// <para>This is an event for Smod2 and as such should not be called by any external code </para>
         /// </summary>
         /// <param name="ev"></param>
         public void OnUpdate(UpdateEvent ev)
         {
-            foreach (KeyValuePair<int, QueueItem> job in jobs.Where(x => x.Value.RunThisTick()).ToArray())
+			foreach (int job in jobs.Keys.ToArray().Where(x => jobs[x].Run()))
             {
-                job.Value.Run();
-                jobs.Remove(job.Key);
+                jobs.Remove(job);
             }
         }
 
@@ -101,85 +70,66 @@ namespace scp4aiur
         /// <param name="ev"></param>
         public void OnRoundRestart(RoundRestartEvent ev)
         {
-            foreach (KeyValuePair<int, QueueItem> job in jobs.Where(x => !x.Value.RoundPersist).ToArray())
+            foreach (int job in jobs.Where(x => !x.Value.RoundPersist).Select(x => x.Key))
             {
-                jobs.Remove(job.Key);
+                jobs.Remove(job);
             }
         }
 
-        private abstract class QueueItem
+        private class QueueItem
         {
-            private readonly string name;
+            private readonly IEnumerator<float> timer;
+	        private int waitFrames;
+	        private float waitTime;
 
-            protected Action action;
-
-            public Exception Exception { get; protected set; }
             public bool RoundPersist { get; }
 
-            protected QueueItem(bool persist, string jobName)
+            public QueueItem(IEnumerable<float> timer, bool persist)
             {
+	            this.timer = timer.GetEnumerator();
                 RoundPersist = persist;
-                name = jobName;
             }
 
-            public abstract bool RunThisTick();
+	        public bool Run()
+	        {
+		        try
+		        {
+			        if (waitFrames < 1)
+			        {
+				        if (waitTime <= 0)
+				        {
+					        if (!timer.MoveNext())
+					        {
+						        return true;
+					        }
 
-            public void Run()
-            {
-                try
-                {
-                    action();
-                }
-                catch (Exception e)
-                {
-                    log($"Exception was thrown by {name} job:\n{e}");
-                }
-            }
-        }
+					        if (timer.Current > 0)
+					        {
+						        waitTime += timer.Current;
+					        }
+					        else
+					        {
+						        waitFrames = (int)-timer.Current + 1;
+							}
+				        }
+				        else
+				        {
+					        waitTime -= Time.deltaTime;
+				        }
+					}
+			        else
+			        {
+				        waitFrames--;
+			        }
 
-        private class NextTickQueue : QueueItem
-        {
-            public NextTickQueue(Action jobAction, bool persist) : base(persist, "next-tick")
-            {
-                action = jobAction;
-            }
-
-            public override bool RunThisTick()
-            {
-                return true;
-            }
-        }
-
-        private class AfterTicksQueue : QueueItem
-        {
-            private int ticksLeft;
-
-            public AfterTicksQueue(Action jobAction, int ticks, bool persist) : base(persist, "after-ticks")
-            {
-                action = jobAction;
-                ticksLeft = ticks;
-            }
-
-            public override bool RunThisTick()
-            {
-                return --ticksLeft < 1;
-            }
-        }
-
-        private class TimerQueue : QueueItem
-        {
-            private float timeLeft;
-
-            public TimerQueue(Action<float> jobAction, float time, bool persist) : base(persist, "timer")
-            {
-                action = () => jobAction(timeLeft);
-                timeLeft = time;
-            }
-
-            public override bool RunThisTick()
-            {
-                return (timeLeft -= Time.deltaTime) <= 0;
-            }
+			        return false;
+		        }
+		        catch (Exception e)
+		        {
+			        log($"Exception was thrown by job:\n{e}");
+			        return true;
+		        }
+			}
         }
     }
 }
