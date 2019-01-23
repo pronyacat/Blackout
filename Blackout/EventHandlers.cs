@@ -387,6 +387,12 @@ namespace Blackout
 						ev.Player.Scp079Data.MaxAP = 80f;
 						ev.Player.Scp079Data.ExpToLevelUp = 999;
 						break;
+
+					default:
+						fcs.Remove(ev.Player.PlayerId);
+						scientists.Remove(ev.Player.PlayerId);
+						slendies.Remove(ev.Player.PlayerId);
+						break;
 				}
 			}
 		}
