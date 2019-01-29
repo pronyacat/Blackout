@@ -35,7 +35,6 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 | bo_items_escape | Integer List | 20,25,25 | Items scientists should be given when they escape and turn into NTF scientists. |
 | bo_slendy_percent | Float | 0.15 | Percentage of players that should be slendies (SCP-049). |
 | bo_start_delay | Float | 30 | Time in seconds until the round starts. |
-| bo_slendy_delay | Float | 30 | Time in seconds until 049s are released. |
 | bo_slendy_delay | Float | 30 | Time in seconds before the slendies (SCP-049) are released. |
 | bo_max_time | Float | 720 | Time in seconds before the round ends. |
 | bo_usp_time | Float | 300 | Time in seconds before a USP spawns in nuke armory. |
