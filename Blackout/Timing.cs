@@ -109,7 +109,7 @@ namespace scp4aiur
 					        }
 					        else
 					        {
-						        waitFrames = (int)-timer.Current + 1;
+						        waitFrames = (int)-timer.Current;
 							}
 				        }
 				        else

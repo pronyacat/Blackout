@@ -165,7 +165,7 @@ namespace Blackout
 	    {
 		    yield return waitTime;
 
-		    for (int i = 0; i > 0; i++)
+		    for (int i = minutes; i > 0; i++)
 		    {
 			    string cassieLine = plugin.MinuteAnnouncements.Contains(minutes) ? $"{minutes} MINUTE{(minutes == 1 ? "" : "S")} REMAINING" : "";
 
@@ -199,23 +199,23 @@ namespace Blackout
 			plugin.RefreshConfig();
 		}
 
-	    public void OnRoundStart(RoundStartEvent ev)
-	    {
-		    if (!plugin.ActiveNextRound && !plugin.Toggled)
-		    {
+		public void OnRoundStart(RoundStartEvent ev)
+			{
+			if (!plugin.ActiveNextRound && !plugin.Toggled)
+			{
 			    return;
-		    }
+			}
 
-		    plugin.Active = true;
-		    plugin.ActiveNextRound = false;
-		    roundStarted = false;
-		    slendiesFree = false;
-		    escapeReady = false;
-			
-		    GamePrep(plugin.Server.GetPlayers());
+			plugin.Active = true;
+			plugin.ActiveNextRound = false;
+			roundStarted = false;
+			slendiesFree = false;
+			escapeReady = false;
+
+			GamePrep(plugin.Server.GetPlayers());
 
 			Timing.Run(TimingRoundStart());
-	    }
+		}
         
         public void OnCheckRoundEnd(CheckRoundEndEvent ev)
         {
@@ -713,75 +713,60 @@ namespace Blackout
         }
 
         /// <summary>
-        /// Gives an array of items to players.
-        /// </summary>
-        /// <param name="player">Player to give items to.</param>
-        /// <param name="items">Items to give the player.</param>
-        public void GiveItems(Player player, IEnumerable<int> items)
-        {
-            GameObject playerObj = (GameObject)player.GetGameObject();
-            Inventory inv = playerObj.GetComponent<Inventory>();
-            WeaponManager manager = playerObj.GetComponent<WeaponManager>();
-
-            Console console = Object.FindObjectOfType<Console>();
-            foreach (int item in items)
-            {
-                int i = WeaponManagerIndex(manager, item);
-
-                if (item < 31)
-                {
-                    int flashlight;
-
-                    switch (item)
-                    {
-                        case (int)ItemType.E11_STANDARD_RIFLE:
-                            flashlight = 4;
-                            break;
-
-                        case (int)ItemType.P90:
-                        case (int)ItemType.USP:
-                        case (int)ItemType.COM15:
-                            flashlight = 1;
-                            break;
-
-						case (int)ItemType.RADIO:
-							player.RadioStatus = RadioStatus.SHORT_RANGE;
-							goto default;
-
-                        default:
-                            player.GiveItem((ItemType)item);
-                            continue;
-                    }
-
-                    inv.AddNewItem(item, manager.weapons[i].maxAmmo, manager.modPreferences[i, 0], manager.modPreferences[i, 1], flashlight);
-                }
-                else
-                {
-                    // Support for ItemManager items
-                    console.TypeCommand($"imgive {player.PlayerId} {item}");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Clears a players inventory.
-        /// </summary>
-        /// <param name="player">Player whose inventory would be cleared</param>
-        public void RemoveItems(Player player)
-        {
-            foreach (Smod2.API.Item item in player.GetInventory())
-                item.Remove();
-        }
-
-        /// <summary>
         /// Overwrites the players inventory with an array of items.
         /// </summary>
         /// <param name="player">Player whose inventory should be set.</param>
         /// <param name="items">Items the players should have.</param>
         public void SetItems(Player player, IEnumerable<int> items)
         {
-            RemoveItems(player);
-            GiveItems(player, items);
+			foreach (Smod2.API.Item item in player.GetInventory())
+			{
+				item.Remove();
+			}
+
+	        GameObject playerObj = (GameObject)player.GetGameObject();
+	        Inventory inv = playerObj.GetComponent<Inventory>();
+	        WeaponManager manager = playerObj.GetComponent<WeaponManager>();
+
+	        Console console = Object.FindObjectOfType<Console>();
+	        int vanillaItems = Enum.GetValues(typeof(ItemType)).Length;
+			foreach (int item in items)
+	        {
+		        int i = WeaponManagerIndex(manager, item);
+
+		        if (item <= vanillaItems)
+		        {
+			        int flashlight;
+
+			        switch (item)
+			        {
+				        case (int)ItemType.E11_STANDARD_RIFLE:
+					        flashlight = 4;
+					        break;
+
+				        case (int)ItemType.P90:
+				        case (int)ItemType.USP:
+				        case (int)ItemType.COM15:
+					        flashlight = 1;
+					        break;
+
+				        case (int)ItemType.RADIO:
+					        player.RadioStatus = RadioStatus.SHORT_RANGE;
+					        goto default;
+
+				        default:
+					        player.GiveItem((ItemType)item);
+					        continue;
+			        }
+
+			        inv.AddNewItem(item, manager.weapons[i].maxAmmo, manager.modPreferences[i, 0], manager.modPreferences[i, 1], flashlight);
+		        }
+		        else
+		        {
+			        // Support for ItemManager items
+			        console.TypeCommand($"imgive {player.PlayerId} {item}");
+		        }
+	        }
         }
 
         /// <summary>
@@ -851,33 +836,6 @@ namespace Blackout
             return weapon;
         }
 
-        /// <summary>
-        /// Gets a user-friendly generator name from the room name
-        /// </summary>
-        /// <param name="roomName">Room that the generator is in.</param>
-        public static string GetGeneratorName(string roomName)
-        {
-            roomName = roomName.Substring(5).Trim().ToUpper();
-
-            if (roomName.Length > 0 && (roomName[0] == '$' || roomName[0] == '!'))
-                roomName = roomName.Substring(1);
-
-            switch (roomName)
-            {
-                case "457":
-                    return "096";
-
-                case "ROOM3AR":
-                    return "ARMORY";
-
-                case "TESTROOM":
-                    return "939";
-
-                default:
-                    return roomName;
-            }
-        }
-
 	    public void OnGeneratorInsertTablet(PlayerGeneratorInsertTabletEvent ev)
 	    {
 		    if (plugin.Active)
@@ -893,7 +851,7 @@ namespace Blackout
 
 	    public void OnGeneratorEjectTablet(PlayerGeneratorEjectTabletEvent ev)
 	    {
-		    if (plugin.Active)
+		    if (plugin.Active && !ev.Generator.Engaged)
 		    {
 			    foreach (Player player in scientists.Values.Concat(slendies.Values))
 			    {
