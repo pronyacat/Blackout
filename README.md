@@ -39,7 +39,7 @@ Place the "Blackout.dll" file in your sm_plugins folder.
 | bo_slendy_delay | Float | 30 | Time in seconds before the slendies (SCP-049) are released. |
 | bo_max_time | Float | 720 | Time in seconds before the round ends. |
 | bo_usp_time | Float | 300 | Time in seconds before a USP spawns in nuke armory. |
-| bo_generator_refresh | Float | 1 | Refresh rate of generator resuming and broadcasts. |
+| bo_generator_time | Float | 60 | Time in seconds that a generator has until it is powered up. |
+| bo_flickerlight_duration | Float | 0 | Time in seconds that the lights should be on for inbetween them being turned off. |
 | bo_announce_times | Integer List | 10,7,4,2,1 | Minute times for CASSIE to announce how many minutes are remaining. |
 | bo_tesla_flicker | Boolean | True | If teslas should activate on light flicker. |
-| bo_multithreaded | Boolean | True | If multithreading should be enabled. This may cause crashes on Linux, disable if so. Refreshed on server restart. |
