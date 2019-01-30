@@ -51,7 +51,7 @@ namespace Blackout
 					room.FlickerLights();
 				}
 
-				yield return 8.25f;
+				yield return 8f + plugin.FlickerlightDuration;
 			}
 		}
 

@@ -152,7 +152,7 @@ namespace Blackout
 				    }
 			    }
 
-			    yield return 11 + plugin.FlickerlightDuration;
+			    yield return 10 + plugin.FlickerlightDuration;
 		    }
 	    }
 
