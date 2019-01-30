@@ -28,6 +28,8 @@ namespace Blackout
         public bool RoundLocked { get; set; }
 
         public string[] ValidRanks { get; private set; }
+		public string[] ValidLightsOutRanks { get; private set; }
+
         public int[] WaitingItems { get; private set; }
         public int[] GameItems { get; private set; }
         public int[] EscapeItems { get; private set; }
@@ -54,7 +56,12 @@ namespace Blackout
                 Role.SCP_939_89
             };
 
-            AddConfig(new ConfigSetting("bo_ranks", new[]
+	        AddConfig(new ConfigSetting("bo_lightsout_ranks", new[]
+	        {
+		        "owner",
+		        "admin"
+	        }, SettingType.LIST, true, "Valid ranks for the LIGHTSOUT command."));
+			AddConfig(new ConfigSetting("bo_ranks", new[]
             {
                 "owner",
                 "admin"
@@ -102,13 +109,15 @@ namespace Blackout
 
             AddEventHandlers(new EventHandlers(this), Priority.High);
             AddCommand("blackout", new CommandHandler(this));
+			AddCommand("lightsout", new LightsCommandHandler(this));
         }
 
         public void RefreshConfig()
         {
             ValidRanks = GetConfigList("bo_ranks");
+	        ValidLightsOutRanks = GetConfigList("bo_lightsout_ranks");
 
-            WaitingItems = GetConfigIntList("bo_items_wait");
+			WaitingItems = GetConfigIntList("bo_items_wait");
             GameItems = GetConfigIntList("bo_items_start");
             EscapeItems = GetConfigIntList("bo_items_escape");
 
