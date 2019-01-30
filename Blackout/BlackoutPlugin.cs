@@ -13,7 +13,7 @@ namespace Blackout
 		name = "Blackout",
         description = "Custom gamemode that uses 079's blackout feature.",
         id = "4aiur.cyanox.blackout",
-        version = "1.0.0",
+        version = "1.1.0",
         SmodMajor = 3,
         SmodMinor = 2,
         SmodRevision = 2)]
