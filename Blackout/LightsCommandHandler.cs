@@ -20,8 +20,8 @@ namespace Blackout
 		public string[] OnCall(ICommandSender sender, string[] args)
 		{
 			if (!(sender is Server) && 
-			    sender is Player player && 
-			    !plugin.ValidLightsOutRanks.Contains(player.GetRankName()))
+				sender is Player player && 
+				!plugin.ValidLightsOutRanks.Contains(player.GetRankName()))
 			{
 				return new[]
 				{

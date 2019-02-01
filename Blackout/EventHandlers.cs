@@ -14,185 +14,185 @@ using Random = UnityEngine.Random;
 
 namespace Blackout
 {
-    public class EventHandlers : IEventHandlerWaitingForPlayers, IEventHandlerRoundStart, 
-        IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
-        IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
-        IEventHandlerPlayerTriggerTesla, IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown,
+	public class EventHandlers : IEventHandlerWaitingForPlayers, IEventHandlerRoundStart, 
+		IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
+		IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
+		IEventHandlerPlayerTriggerTesla, IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown,
 		IEventHandlerSetRole, IEventHandlerRecallZombie, IEventHandlerInfected, IEventHandlerCallCommand,
 		IEventHandlerGeneratorInsertTablet, IEventHandlerGeneratorEjectTablet, IEventHandlerGeneratorFinish,
 		IEventHandler079TeslaGate, IEventHandler079Elevator, IEventHandler079AddExp
-    {
-        private const string BroadcastExplanation = "<b><color=#f22>This is Blackout, a custom gamemode. If you have never played it, press [ ` ] or [~] for more info.</color></b>";
-        private const string ConsoleExplaination =
-            "\nWelcome to Blackout!\n" +
-            "In Blackout, you're either a scientist, an 049, or a Facility Control member. All the lights will turn off and exits have been locked. " +
-            "The only way to get out is by activating all the 079 generators, then going to the 049 armory, entrance checkpoint, or the Heavy Containment Zone armory " +
-            "(that 3 way intersection with the chasm beneath it). " +
-            "O5 keycards will replace all existing keycards. When you escape, you will be given weapons to kill all 049s. " +
-            "Eliminate all of them before the nuke detonates for an MTF win.";
+	{
+		private const string BroadcastExplanation = "<b><color=#f22>This is Blackout, a custom gamemode. If you have never played it, press [ ` ] or [~] for more info.</color></b>";
+		private const string ConsoleExplaination =
+			"\nWelcome to Blackout!\n" +
+			"In Blackout, you're either a scientist, an 049, or a Facility Control member. All the lights will turn off and exits have been locked. " +
+			"The only way to get out is by activating all the 079 generators, then going to the 049 armory, entrance checkpoint, or the Heavy Containment Zone armory " +
+			"(that 3 way intersection with the chasm beneath it). " +
+			"O5 keycards will replace all existing keycards. When you escape, you will be given weapons to kill all 049s. " +
+			"Eliminate all of them before the nuke detonates for an MTF win.";
 
-        private const float Cassie049BreachDelay = 8.25f;
+		private const float Cassie049BreachDelay = 8.25f;
 
-        private readonly BlackoutPlugin plugin;
+		private readonly BlackoutPlugin plugin;
 
-        private bool roundStarted;
-        private bool slendiesFree;
-        private bool escapeReady;
+		private bool roundStarted;
+		private bool slendiesFree;
+		private int generatorPowerups;
 
-        private Dictionary<Player, Vector> slendySpawns;
-        private readonly Dictionary<int, Player> scientists;
-	    private readonly Dictionary<int, Player> slendies;
-	    private readonly Dictionary<int, Player> fcs;
+		private Dictionary<Player, Vector> slendySpawns;
+		private readonly Dictionary<int, Player> scientists;
+		private readonly Dictionary<int, Player> slendies;
+		private readonly Dictionary<int, Player> fcs;
 		private Vector3[] uspRespawns;
 		
-        private List<Smod2.API.TeslaGate> teslas;
+		private List<Smod2.API.TeslaGate> teslas;
 
-        public EventHandlers(BlackoutPlugin plugin)
-        {
-            this.plugin = plugin;
+		public EventHandlers(BlackoutPlugin plugin)
+		{
+			this.plugin = plugin;
 
 			scientists = new Dictionary<int, Player>();
 			slendies = new Dictionary<int, Player>();
 			fcs = new Dictionary<int, Player>();
-        }
+		}
 
-	    private IEnumerable<float> TimingSetItems(float delay, Player player, IEnumerable<int> items)
-	    {
-		    yield return delay;
+		private IEnumerable<float> TimingSetItems(float delay, Player player, IEnumerable<int> items)
+		{
+			yield return delay;
 
-		    SetItems(player, items);
-	    }
+			SetItems(player, items);
+		}
 
 		private IEnumerable<float> TimingSpawnUsps(float delay, IEnumerable<Vector3> spawns, Inventory inventory, WeaponManager.Weapon usp)
-	    {
-		    yield return delay;
+		{
+			yield return delay;
 
-		    plugin.Server.Map.AnnounceCustomMessage("U S P NOW AVAILABLE");
+			plugin.Server.Map.AnnounceCustomMessage("U S P NOW AVAILABLE");
 
-		    // Spawn USPs with random sight, heavy barrel, and flashlight :ok_hand:
-		    foreach (Vector3 spawn in spawns)
-		    {
-			    inventory.SetPickup((int)ItemType.USP, usp.maxAmmo, spawn, Quaternion.Euler(0, 0, 0), Random.Range(0, usp.mod_sights.Length), 2, 1);
-		    }
-	    }
+			// Spawn USPs with random sight, heavy barrel, and flashlight :ok_hand:
+			foreach (Vector3 spawn in spawns)
+			{
+				inventory.SetPickup((int)ItemType.USP, usp.maxAmmo, spawn, Quaternion.Euler(0, 0, 0), Random.Range(0, usp.mod_sights.Length), 2, 1);
+			}
+		}
 
-	    public IEnumerable<float> TimingRoundStart()
-	    {
-		    const float cassieDelay = 8.6f;
-		    const float flickerDelay = 0.4f;
+		public IEnumerable<float> TimingRoundStart()
+		{
+			const float cassieDelay = 8.6f;
+			const float flickerDelay = 0.4f;
 
-		    // Cassie and flicker delay is subtracted in order to start the round by that time
-		    yield return plugin.StartDelay - (cassieDelay + flickerDelay);
+			// Cassie and flicker delay is subtracted in order to start the round by that time
+			yield return plugin.StartDelay - (cassieDelay + flickerDelay);
 
-		    plugin.Server.Map.AnnounceCustomMessage("LIGHT SYSTEM SCP079RECON6");
-		    yield return cassieDelay;
+			plugin.Server.Map.AnnounceCustomMessage("LIGHT SYSTEM SCP079RECON6");
+			yield return cassieDelay;
 
-		    Timing.Run(TimingBlackoutFlicker());
+			Timing.Run(TimingBlackoutFlicker());
 
-		    int maxTimeMinutes = Mathf.FloorToInt(plugin.ScpVictoryTime / 60);
-		    float remainder = plugin.ScpVictoryTime - maxTimeMinutes * 60;
-		    Timing.Run(TimingTimeAnnouncements(remainder, maxTimeMinutes));
+			int maxTimeMinutes = Mathf.FloorToInt(plugin.ScpVictoryTime / 60);
+			float remainder = plugin.ScpVictoryTime - maxTimeMinutes * 60;
+			Timing.Run(TimingTimeAnnouncements(remainder, maxTimeMinutes));
 
-		    foreach (Player slendy in slendies.Values)
-		    {
-			    slendy.ChangeRole(Role.SCP_049, false, false);
+			foreach (Player slendy in slendies.Values)
+			{
+				slendy.ChangeRole(Role.SCP_049, false, false);
 
-			    //Teleport to 106 as a prison
-			    slendy.Teleport(plugin.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
+				//Teleport to 106 as a prison
+				slendy.Teleport(plugin.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
 
-			    slendy.PersonalBroadcast(5, $"<color=#ccc>You will be free in</color> {plugin.SlendyReleaseDelay} <color=#ccc>seconds.</color>", false);
-		    }
+				slendy.PersonalBroadcast(5, $"<color=#ccc>You will be free in</color> {plugin.SlendyReleaseDelay} <color=#ccc>seconds.</color>", false);
+			}
 
-		    foreach (Player player in scientists.Values)
-		    {
-			    SetItems(player, plugin.GameItems);
-		    }
+			foreach (Player player in scientists.Values)
+			{
+				SetItems(player, plugin.GameItems);
+			}
 
-		    foreach (Player player in fcs.Values)
-		    {
-			    player.ChangeRole(Role.SCP_079);
-		    }
+			foreach (Player player in fcs.Values)
+			{
+				player.ChangeRole(Role.SCP_079);
+			}
 
-		    Timing.Run(TimingReleaseSlendies(plugin.SlendyReleaseDelay - Cassie049BreachDelay));
-		    UpdateUspRespawns(uspRespawns);
+			Timing.Run(TimingReleaseSlendies(plugin.SlendyReleaseDelay - Cassie049BreachDelay));
+			UpdateUspRespawns(uspRespawns);
 
-		    yield return 2f;
+			yield return 2f;
 
-		    roundStarted = true;
-	    }
+			roundStarted = true;
+		}
 
-	    private IEnumerable<float> TimingReleaseSlendies(float delay)
-	    {
-		    yield return delay;
-		    
+		private IEnumerable<float> TimingReleaseSlendies(float delay)
+		{
+			yield return delay;
+			
 			plugin.Server.Map.AnnounceCustomMessage("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS");
 			yield return Cassie049BreachDelay;
 
-		    slendiesFree = true;
+			slendiesFree = true;
 			foreach (KeyValuePair<Player, Vector> slendy in slendySpawns)
-		    {
-			    slendy.Key.Teleport(slendy.Value);
-		    }
+			{
+				slendy.Key.Teleport(slendy.Value);
+			}
 		}
 
-	    /// <summary>
-	    /// Causes a blackout to happen in all of HCZ.
-	    /// </summary>
-	    public IEnumerable<float> TimingBlackoutFlicker()
-	    {
-		    while (true)
-		    {
-			    Generator079.mainGenerator.CallRpcOvercharge();
+		/// <summary>
+		/// Causes a blackout to happen in all of HCZ.
+		/// </summary>
+		public IEnumerable<float> TimingBlackoutFlicker()
+		{
+			while (true)
+			{
+				Generator079.mainGenerator.CallRpcOvercharge();
 
-			    if (plugin.TeslaFlicker)
-			    {
-				    foreach (Smod2.API.TeslaGate tesla in teslas)
-				    {
-					    tesla.Activate(true);
-				    }
-			    }
+				if (plugin.TeslaFlicker)
+				{
+					foreach (Smod2.API.TeslaGate tesla in teslas)
+					{
+						tesla.Activate(true);
+					}
+				}
 
-			    yield return 10 + plugin.FlickerlightDuration;
-		    }
-	    }
+				yield return 10 + plugin.FlickerlightDuration;
+			}
+		}
 
-	    /// <summary>
-	    /// Announcements for how much time is left and nuke at the last minute of the game
-	    /// </summary>
-	    /// <param name="waitTime">Amount of time before the countdown begins.</param>
-	    /// <param name="minutes">Minutes remaining</param>
-	    public IEnumerable<float> TimingTimeAnnouncements(float waitTime, int minutes)
-	    {
-		    yield return waitTime;
+		/// <summary>
+		/// Announcements for how much time is left and nuke at the last minute of the game
+		/// </summary>
+		/// <param name="waitTime">Amount of time before the countdown begins.</param>
+		/// <param name="minutes">Minutes remaining</param>
+		public IEnumerable<float> TimingTimeAnnouncements(float waitTime, int minutes)
+		{
+			yield return waitTime;
 
-		    for (int i = minutes; i > 0; i++)
-		    {
-			    string cassieLine = plugin.MinuteAnnouncements.Contains(minutes) ? $"{minutes} MINUTE{(minutes == 1 ? "" : "S")} REMAINING" : "";
+			for (int i = minutes; i > 0; i--)
+			{
+				string cassieLine = plugin.MinuteAnnouncements.Contains(minutes) ? $"{minutes} MINUTE{(minutes == 1 ? "" : "S")} REMAINING" : "";
 
-			    if (minutes == 1)
-			    {
-				    if (!string.IsNullOrWhiteSpace(cassieLine))
-				    {
-					    cassieLine += " . ";
-				    }
+				if (minutes == 1)
+				{
+					if (!string.IsNullOrWhiteSpace(cassieLine))
+					{
+						cassieLine += " . ";
+					}
 
-				    const float nukeStart = 50f; // Makes sure that the nuke starts when the siren is almost silent so it sounds like it just started
+					const float nukeStart = 50f; // Makes sure that the nuke starts when the siren is almost silent so it sounds like it just started
 
-				    plugin.Server.Map.AnnounceCustomMessage(cassieLine + "ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED");
-				    yield return 60f - nukeStart;
+					plugin.Server.Map.AnnounceCustomMessage(cassieLine + "ALPHA WARHEAD AUTOMATIC REACTIVATION SYSTEM ENGAGED");
+					yield return 60f - nukeStart;
 
-				    AlphaWarheadController.host.StartDetonation();
-				    AlphaWarheadController.host.NetworktimeToDetonation = nukeStart;
+					AlphaWarheadController.host.StartDetonation();
+					AlphaWarheadController.host.NetworktimeToDetonation = nukeStart;
 
-				    yield return nukeStart;
-			    }
-			    else
-			    {
-				    plugin.Server.Map.AnnounceCustomMessage(cassieLine);
-				    yield return 60f;
-			    }
-		    }
-	    }
+					yield return nukeStart;
+				}
+				else if (cassieLine != string.Empty)
+				{
+					plugin.Server.Map.AnnounceCustomMessage(cassieLine);
+					yield return 60f;
+				}
+			}
+		}
 
 		public void OnWaitingForPlayers(WaitingForPlayersEvent ev)
 		{
@@ -200,93 +200,92 @@ namespace Blackout
 		}
 
 		public void OnRoundStart(RoundStartEvent ev)
-			{
+		{
 			if (!plugin.ActiveNextRound && !plugin.Toggled)
 			{
-			    return;
+				return;
 			}
 
 			plugin.Active = true;
 			plugin.ActiveNextRound = false;
 			roundStarted = false;
 			slendiesFree = false;
-			escapeReady = false;
+			generatorPowerups = 0;
 
 			GamePrep(plugin.Server.GetPlayers());
 
 			Timing.Run(TimingRoundStart());
 		}
-        
-        public void OnCheckRoundEnd(CheckRoundEndEvent ev)
-        {
-            if (plugin.Active)
-            {
-                if (!roundStarted)
-                {
-                    ev.Status = ROUND_END_STATUS.ON_GOING;
-                }
-                else
-                {
-                    Smod2.API.Team[] players = PlayerManager.singleton.players.Select(x =>
-                    {
-                        CharacterClassManager ccm = x.GetComponent<CharacterClassManager>();
-                        return (Smod2.API.Team) ccm.klasy[ccm.curClass].team;
-                    }).ToArray();
+		
+		public void OnCheckRoundEnd(CheckRoundEndEvent ev)
+		{
+			if (plugin.Active)
+			{
+				if (!roundStarted)
+				{
+					ev.Status = ROUND_END_STATUS.ON_GOING;
+				}
+				else
+				{
+					Smod2.API.Team[] players = PlayerManager.singleton.players.Select(x =>
+					{
+						CharacterClassManager ccm = x.GetComponent<CharacterClassManager>();
+						return (Smod2.API.Team) ccm.klasy[ccm.curClass].team;
+					}).ToArray();
 
-                    bool mtf = players.Count(x => x == Smod2.API.Team.NINETAILFOX) > 0;
-                    bool scp = players.Count(x => x == Smod2.API.Team.SCP) - fcs.Count > 0;
-                    bool scientist = players.Count(x => x == Smod2.API.Team.SCIENTIST) > 0;
+					bool mtf = players.Count(x => x == Smod2.API.Team.NINETAILFOX) > 0;
+					bool scp = players.Count(x => x == Smod2.API.Team.SCP) - fcs.Count > 0;
+					bool scientist = players.Count(x => x == Smod2.API.Team.SCIENTIST) > 0;
 
-                    if (scientist)
-                    {
-	                    if (!scp)
-	                    {
-		                    ev.Status = ROUND_END_STATUS.MTF_VICTORY;
-	                    }
-                    }
-                    else
-                    {
-	                    if (mtf)
-	                    {
-		                    if (!scp)
-		                    {
-			                    ev.Status = ROUND_END_STATUS.MTF_VICTORY;
-		                    }
-	                    }
-	                    else
-	                    {
-		                    ev.Status = ROUND_END_STATUS.SCP_VICTORY;
-	                    }
+					if (scientist)
+					{
+						if (!scp)
+						{
+							ev.Status = ROUND_END_STATUS.MTF_VICTORY;
+						}
 					}
-                }
-            }
-        }
-        
-        public void OnRoundRestart(RoundRestartEvent ev)
-        {
-            plugin.Active = false;
+					else
+					{
+						if (mtf)
+						{
+							if (!scp)
+							{
+								ev.Status = ROUND_END_STATUS.MTF_VICTORY;
+							}
+						}
+						else
+						{
+							ev.Status = ROUND_END_STATUS.SCP_VICTORY;
+						}
+					}
+				}
+			}
+		}
+		
+		public void OnRoundRestart(RoundRestartEvent ev)
+		{
+			plugin.Active = false;
 
 			scientists.Clear();
 			slendies.Clear();
-	        fcs.Clear();
-        }
-        
-        public void OnDoorAccess(PlayerDoorAccessEvent ev)
-        {
-            if (plugin.Active)
-            {
+			fcs.Clear();
+		}
+		
+		public void OnDoorAccess(PlayerDoorAccessEvent ev)
+		{
+			if (plugin.Active)
+			{
 				if (roundStarted)
 				{
 					switch (ev.Door.Name)
 					{
-                        case "HCZ_ARMORY":
-                        case "049_ARMORY":
+						case "HCZ_ARMORY":
+						case "049_ARMORY":
 						case "ENTRANCE_CHECKPOINT":
-						    if (ev.Player.TeamRole.Role == Role.SCIENTIST &&
-						        (escapeReady || (escapeReady = Generator079.generators.All(x => x.remainingPowerup <= 0)))) //if escape is known to be ready, and if not check if it is
-                            {
-						        EscapeScientist(ev.Player);
-                            }
+							if (ev.Player.TeamRole.Role == Role.SCIENTIST && generatorPowerups >= 5) //if escape is known to be ready, and if not check if it is
+							{
+								EscapeScientist(ev.Player);
+							}
 
 							ev.Destroy = false;
 							break;
@@ -296,34 +295,34 @@ namespace Blackout
 				{
 					ev.Door.Open = false;
 				}
-            }
-        }
-        
-        public void OnElevatorUse(PlayerElevatorUseEvent ev)
-        {
-            if (plugin.Active && (ev.Elevator.ElevatorType == ElevatorType.LiftA || ev.Elevator.ElevatorType == ElevatorType.LiftB))
-            {
-                ev.AllowUse = false;
-            }
-        }
-        
-        public void OnPlayerTriggerTesla(PlayerTriggerTeslaEvent ev)
-        {
-            if (plugin.Active && plugin.TeslaFlicker)
-            {
-                ev.Triggerable = false;
-            }
-        }
-        
-        public void OnPlayerHurt(PlayerHurtEvent ev)
-        {
-            if (plugin.Active && ev.DamageType == DamageType.NUKE && ev.Player.TeamRole.Team == Smod2.API.Team.SCP)
-            {
-                ev.Damage = 0;
-            }
-        }
-        
-        public void OnSetRole(PlayerSetRoleEvent ev)
+			}
+		}
+		
+		public void OnElevatorUse(PlayerElevatorUseEvent ev)
+		{
+			if (plugin.Active && (ev.Elevator.ElevatorType == ElevatorType.LiftA || ev.Elevator.ElevatorType == ElevatorType.LiftB))
+			{
+				ev.AllowUse = false;
+			}
+		}
+		
+		public void OnPlayerTriggerTesla(PlayerTriggerTeslaEvent ev)
+		{
+			if (plugin.Active && plugin.TeslaFlicker)
+			{
+				ev.Triggerable = false;
+			}
+		}
+		
+		public void OnPlayerHurt(PlayerHurtEvent ev)
+		{
+			if (plugin.Active && ev.DamageType == DamageType.NUKE && ev.Player.TeamRole.Team == Smod2.API.Team.SCP)
+			{
+				ev.Damage = 0;
+			}
+		}
+		
+		public void OnSetRole(PlayerSetRoleEvent ev)
 		{
 			if (plugin.Active)
 			{
@@ -396,50 +395,50 @@ namespace Blackout
 				}
 			}
 		}
-        
-        public void OnTeamRespawn(TeamRespawnEvent ev)
-        {
-            if (plugin.Active)
-            {
-                ev.SpawnChaos = true;
-                ev.PlayerList = new List<Player>();
-            }
-        }
-        
-        public void OnSummonVehicle(SummonVehicleEvent ev)
-        {
-            if (plugin.Active)
-            {
-                ev.AllowSummon = false;
-            }
-        }
-        
-        public void OnStartCountdown(WarheadStartEvent ev)
-        {
-            if (plugin.Active)
-            {
-                ev.OpenDoorsAfter = false;
-            }
-        }
-        
-        public void OnRecallZombie(PlayerRecallZombieEvent ev)
-        {
-            if (plugin.Active)
-            {
-                ev.AllowRecall = false;
-            }
-        }
-        
-        public void OnPlayerInfected(PlayerInfectedEvent ev)
-        {
-            if (plugin.Active)
-            {
-                ev.InfectTime = 0;
-            }
-        }
-        
-        public void OnCallCommand(PlayerCallCommandEvent ev)
-        {
+		
+		public void OnTeamRespawn(TeamRespawnEvent ev)
+		{
+			if (plugin.Active)
+			{
+				ev.SpawnChaos = true;
+				ev.PlayerList = new List<Player>();
+			}
+		}
+		
+		public void OnSummonVehicle(SummonVehicleEvent ev)
+		{
+			if (plugin.Active)
+			{
+				ev.AllowSummon = false;
+			}
+		}
+		
+		public void OnStartCountdown(WarheadStartEvent ev)
+		{
+			if (plugin.Active)
+			{
+				ev.OpenDoorsAfter = false;
+			}
+		}
+		
+		public void OnRecallZombie(PlayerRecallZombieEvent ev)
+		{
+			if (plugin.Active)
+			{
+				ev.AllowRecall = false;
+			}
+		}
+		
+		public void OnPlayerInfected(PlayerInfectedEvent ev)
+		{
+			if (plugin.Active)
+			{
+				ev.InfectTime = 0;
+			}
+		}
+		
+		public void OnCallCommand(PlayerCallCommandEvent ev)
+		{
 			if (ev.Command.StartsWith("fc") && (ev.Command.Length == 2 || ev.Command[2] == ' '))
 			{
 				if (!plugin.Active)
@@ -455,230 +454,230 @@ namespace Blackout
 				}
 
 				ev.ReturnMessage = SendFcMessage(ev.Player, ev.Command.Substring(3));
-            }
-        }
+			}
+		}
 
-        /// <summary>
-        /// Spawns everyone in waiting room and caches spawns and players.
-        /// </summary>
-        /// <param name="players">All the players involved in the </param>
-        public void GamePrep(IReadOnlyCollection<Player> players)
-        {
-            Pickup[] pickups = Object.FindObjectsOfType<Pickup>();
+		/// <summary>
+		/// Spawns everyone in waiting room and caches spawns and players.
+		/// </summary>
+		/// <param name="players">All the players involved in the </param>
+		public void GamePrep(IReadOnlyCollection<Player> players)
+		{
+			Pickup[] pickups = Object.FindObjectsOfType<Pickup>();
 
-            uspRespawns = pickups.Where(x => x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE).Select(x => x.info.position).ToArray();
-            UpdateItems(pickups);
-            SetMapBoundaries();
-            RandomizePlayers(players);
+			uspRespawns = pickups.Where(x => x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE).Select(x => x.info.position).ToArray();
+			UpdateItems(pickups);
+			SetMapBoundaries();
+			RandomizePlayers(players);
 
 			// Set every class to scientist
 			foreach (Player player in players)
-            {
-                player.ChangeRole(Role.SCIENTIST);
-            }
+			{
+				player.ChangeRole(Role.SCIENTIST);
+			}
 
-            // Set 049 spawn points
-            slendySpawns = GenerateSpawnPoints(slendies.Values);
-            teslas = plugin.Server.Map.GetTeslaGates();
+			// Set 049 spawn points
+			slendySpawns = GenerateSpawnPoints(slendies.Values);
+			teslas = plugin.Server.Map.GetTeslaGates();
 
-            // Inform players
-            plugin.Server.Map.Broadcast(10, BroadcastExplanation, false);
-	        foreach (Player player in players)
-	        {
+			// Inform players
+			plugin.Server.Map.Broadcast(10, BroadcastExplanation, false);
+			foreach (Player player in players)
+			{
 				player.SendConsoleMessage(ConsoleExplaination);
 			}
-        }
+		}
 
-        /// <summary>
-        /// Locks entrance checkpoint, LCZ elevators, and nuke button. Also sends the 049 elevator down.
-        /// </summary>
-        public void SetMapBoundaries()
-        {
-            // Lock LCZ elevators
-            foreach (Elevator elevator in plugin.Server.Map.GetElevators())
-            {
-                switch (elevator.ElevatorType)
-                {
-                    case ElevatorType.SCP049Chamber when elevator.ElevatorStatus == ElevatorStatus.Up:
-                    case ElevatorType.LiftA when elevator.ElevatorStatus == ElevatorStatus.Down:
-                    case ElevatorType.LiftB when elevator.ElevatorStatus == ElevatorStatus.Down:
-                        elevator.Use();
-                        break;
-                }
-            }
+		/// <summary>
+		/// Locks entrance checkpoint, LCZ elevators, and nuke button. Also sends the 049 elevator down.
+		/// </summary>
+		public void SetMapBoundaries()
+		{
+			// Lock LCZ elevators
+			foreach (Elevator elevator in plugin.Server.Map.GetElevators())
+			{
+				switch (elevator.ElevatorType)
+				{
+					case ElevatorType.SCP049Chamber when elevator.ElevatorStatus == ElevatorStatus.Up:
+					case ElevatorType.LiftA when elevator.ElevatorStatus == ElevatorStatus.Down:
+					case ElevatorType.LiftB when elevator.ElevatorStatus == ElevatorStatus.Down:
+						elevator.Use();
+						break;
+				}
+			}
 
-            List<Smod2.API.Door> doors = plugin.Server.Map.GetDoors();
-            doors.First(x => x.Name == "CHECKPOINT_ENT").Locked = true;
-            doors.First(x => x.Name == "HCZ_ARMORY").Locked = true;
-	        doors.First(x => x.Name == "049_ARMORY").Locked = true;
+			List<Smod2.API.Door> doors = plugin.Server.Map.GetDoors();
+			doors.First(x => x.Name == "CHECKPOINT_ENT").Locked = true;
+			doors.First(x => x.Name == "HCZ_ARMORY").Locked = true;
+			doors.First(x => x.Name == "049_ARMORY").Locked = true;
 
 			AlphaWarheadController.host.SetLocked(true);
-        }
+		}
 
-        /// <summary>
-        /// Removes HIDs, replaces keycards
-        /// </summary>
-        public static void UpdateItems(Pickup[] pickups)
-        {
-            // Delete all micro HIDs or USPs
-            foreach (Pickup gun in pickups.Where(x =>
-                x.info.itemId == (int)ItemType.MICROHID ||
-                x.info.itemId == (int)ItemType.USP ||
-                x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE
-                ))
-                gun.Delete();
+		/// <summary>
+		/// Removes HIDs, replaces keycards
+		/// </summary>
+		public static void UpdateItems(Pickup[] pickups)
+		{
+			// Delete all micro HIDs or USPs
+			foreach (Pickup gun in pickups.Where(x =>
+				x.info.itemId == (int)ItemType.MICROHID ||
+				x.info.itemId == (int)ItemType.USP ||
+				x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE
+				))
+				gun.Delete();
 
-            foreach (Pickup keycard in pickups.Where(x => -1 < x.info.itemId && x.info.itemId < 12)) // All keycard items
-            {
-                Pickup.PickupInfo info = keycard.info;
-                info.itemId = (int)ItemType.O5_LEVEL_KEYCARD;
-                keycard.Networkinfo = info;
-            }
-        }
+			foreach (Pickup keycard in pickups.Where(x => -1 < x.info.itemId && x.info.itemId < 12)) // All keycard items
+			{
+				Pickup.PickupInfo info = keycard.info;
+				info.itemId = (int)ItemType.O5_LEVEL_KEYCARD;
+				keycard.Networkinfo = info;
+			}
+		}
 
-        /// <summary>
-        /// Gets all the possible timed-USP spawn points.
-        /// </summary>
-        /// <param name="allPickups">Every pickup on the map.</param>
-        public static IEnumerable<Vector3> UspSpawnPoints(IEnumerable<Pickup> allPickups)
-        {
-            return allPickups.Where(x => x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE).Select(x => x.info.position);
-        }
+		/// <summary>
+		/// Gets all the possible timed-USP spawn points.
+		/// </summary>
+		/// <param name="allPickups">Every pickup on the map.</param>
+		public static IEnumerable<Vector3> UspSpawnPoints(IEnumerable<Pickup> allPickups)
+		{
+			return allPickups.Where(x => x.info.itemId == (int)ItemType.E11_STANDARD_RIFLE).Select(x => x.info.position);
+		}
 
-        /// <summary>
-        /// Starts the timer on USP respawning.
-        /// </summary>
-        /// <param name="spawns">Spawn positions for USPs.</param>
-        public void UpdateUspRespawns(IEnumerable<Vector3> spawns)
-        {
-            GameObject host = GameObject.Find("Host");
+		/// <summary>
+		/// Starts the timer on USP respawning.
+		/// </summary>
+		/// <param name="spawns">Spawn positions for USPs.</param>
+		public void UpdateUspRespawns(IEnumerable<Vector3> spawns)
+		{
+			GameObject host = GameObject.Find("Host");
 
-            Timing.Run(TimingSpawnUsps(plugin.UspTime, spawns, host.GetComponent<Inventory>(), host.GetComponent<WeaponManager>().weapons.First(x => x.inventoryID == (int)ItemType.USP)));
-        }
+			Timing.Run(TimingSpawnUsps(plugin.UspTime, spawns, host.GetComponent<Inventory>(), host.GetComponent<WeaponManager>().weapons.First(x => x.inventoryID == (int)ItemType.USP)));
+		}
 
-        /// <summary>
-        /// Evenly distributes spawnpoints randomly to each slendy.
-        /// </summary>
-        /// <param name="slendies">Slendies that are going to spawn.</param>
-        public Dictionary<Player, Vector> GenerateSpawnPoints(IEnumerable<Player> slendies)
-        {
-            List<Role> availableSpawns = plugin.SlendySpawnPoints.ToList();
-            return slendies.ToDictionary(x => x, x =>
-            {
-                // Get role and remove it from pool
-                Role spawnRole = availableSpawns[Random.Range(0, availableSpawns.Count)];
-                availableSpawns.Remove(spawnRole);
+		/// <summary>
+		/// Evenly distributes spawnpoints randomly to each slendy.
+		/// </summary>
+		/// <param name="slendies">Slendies that are going to spawn.</param>
+		public Dictionary<Player, Vector> GenerateSpawnPoints(IEnumerable<Player> slendies)
+		{
+			List<Role> availableSpawns = plugin.SlendySpawnPoints.ToList();
+			return slendies.ToDictionary(x => x, x =>
+			{
+				// Get role and remove it from pool
+				Role spawnRole = availableSpawns[Random.Range(0, availableSpawns.Count)];
+				availableSpawns.Remove(spawnRole);
 
-                // Fill pool if it overflows
-                if (availableSpawns.Count == 0)
-                {
-                    availableSpawns.AddRange(plugin.SlendySpawnPoints);
-                }
+				// Fill pool if it overflows
+				if (availableSpawns.Count == 0)
+				{
+					availableSpawns.AddRange(plugin.SlendySpawnPoints);
+				}
 
-                // Set point to random point from role
-                return plugin.Server.Map.GetRandomSpawnPoint(spawnRole);
-            });
-        }
+				// Set point to random point from role
+				return plugin.Server.Map.GetRandomSpawnPoint(spawnRole);
+			});
+		}
 
-        /// <summary>
-        /// Randomizes the slendy players and scientist players.
-        /// </summary>
-        /// <param name="players">All the players that are playing the </param>
-        public void RandomizePlayers(IEnumerable<Player> players)
-        {
-	        foreach (Player player in players)
-	        {
+		/// <summary>
+		/// Randomizes the slendy players and scientist players.
+		/// </summary>
+		/// <param name="players">All the players that are playing the </param>
+		public void RandomizePlayers(IEnumerable<Player> players)
+		{
+			foreach (Player player in players)
+			{
 				scientists.Add(player.PlayerId, player);
-	        }
+			}
 
-            if (scientists.Count == 1)
-            {
-                return;
-            }
+			if (scientists.Count == 1)
+			{
+				return;
+			}
 
-            // Get percentage of 049s based on players
-            int slendyCount = Mathf.CeilToInt(scientists.Count * plugin.PercentSlendies);
+			// Get percentage of 049s based on players
+			int slendyCount = Mathf.CeilToInt(scientists.Count * plugin.PercentSlendies);
 
-            // Get random 049s
-            for (int i = 0; i < slendyCount; i++)
-            {
-                KeyValuePair<int, Player> slendy = scientists.ElementAt(Random.Range(0, scientists.Count));
+			// Get random 049s
+			for (int i = 0; i < slendyCount; i++)
+			{
+				KeyValuePair<int, Player> slendy = scientists.ElementAt(Random.Range(0, scientists.Count));
 
-                slendies.Add(slendy.Key, slendy.Value);
-	            scientists.Remove(slendy.Key);
-            }
+				slendies.Add(slendy.Key, slendy.Value);
+				scientists.Remove(slendy.Key);
+			}
 
-            if (scientists.Count == 1)
-            {
-                return;
-            }
+			if (scientists.Count == 1)
+			{
+				return;
+			}
 
-            // Get percentage of FCs based on players
-            int fcCount = Mathf.CeilToInt(scientists.Count * plugin.PercentFacilityControl);
+			// Get percentage of FCs based on players
+			int fcCount = Mathf.CeilToInt(scientists.Count * plugin.PercentFacilityControl);
 
-            // Get random FCs
-            for (int i = 0; i < fcCount; i++)
-            {
-	            KeyValuePair<int, Player> fc = scientists.ElementAt(Random.Range(0, scientists.Count));
+			// Get random FCs
+			for (int i = 0; i < fcCount; i++)
+			{
+				KeyValuePair<int, Player> fc = scientists.ElementAt(Random.Range(0, scientists.Count));
 
 				fcs.Add(fc.Key, fc.Value);
-	            scientists.Remove(fc.Key);
-            }
-        }
+				scientists.Remove(fc.Key);
+			}
+		}
 
-        /// <summary>
-        /// Teleports all slendies to 106 to keep them from doing anything.
-        /// </summary>
-        /// <param name="slendies">Slendies to imprison.</param>
-        public void ImprisonSlendies(IEnumerable<Player> slendies)
-        {
-            foreach (Player slendy in slendies)
-            {
-                slendy.ChangeRole(Role.SCP_049, false, false);
+		/// <summary>
+		/// Teleports all slendies to 106 to keep them from doing anything.
+		/// </summary>
+		/// <param name="slendies">Slendies to imprison.</param>
+		public void ImprisonSlendies(IEnumerable<Player> slendies)
+		{
+			foreach (Player slendy in slendies)
+			{
+				slendy.ChangeRole(Role.SCP_049, false, false);
 
-                //Teleport to 106 as a prison
-                slendy.Teleport(plugin.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
+				//Teleport to 106 as a prison
+				slendy.Teleport(plugin.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
 
 				slendy.PersonalBroadcast(5, $"<color=#ccc>You will be free in</color> {plugin.SlendyReleaseDelay} <color=#ccc>seconds.</color>", false);
-            }
-        }
+			}
+		}
 
-        /// <summary>
-        /// Spawns a scientist with gamemode spawn and items.
-        /// </summary>
-        /// <param name="player">Player to spawn.</param>
-        public void SpawnRole(Player player, Role role)
-        {
-            switch (role)
-            {
-                case Role.SCIENTIST:
-                    player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
+		/// <summary>
+		/// Spawns a scientist with gamemode spawn and items.
+		/// </summary>
+		/// <param name="player">Player to spawn.</param>
+		public void SpawnRole(Player player, Role role)
+		{
+			switch (role)
+			{
+				case Role.SCIENTIST:
+					player.Teleport(PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_049));
 
-	                int[] items;
-                    if (roundStarted)
-                    {
-                        player.PersonalBroadcast(10, "You are a <color=#FFFF7C>scientist</color>.\nDodge <color=#f00>SCP-049</color> and escape by\nworking with <color=#0096FF>Facility Control</color>.", false);
+					int[] items;
+					if (roundStarted)
+					{
+						player.PersonalBroadcast(10, "You are a <color=#FFFF7C>scientist</color>.\nDodge <color=#f00>SCP-049</color> and escape by\nworking with <color=#0096FF>Facility Control</color>.", false);
 
-	                    if (!scientists.ContainsKey(player.PlayerId))
-	                    {
-		                    fcs.Remove(player.PlayerId);
-		                    slendies.Remove(player.PlayerId);
+						if (!scientists.ContainsKey(player.PlayerId))
+						{
+							fcs.Remove(player.PlayerId);
+							slendies.Remove(player.PlayerId);
 
-		                    scientists.Add(player.PlayerId, player);
-	                    }
+							scientists.Add(player.PlayerId, player);
+						}
 
-	                    items = plugin.GameItems;
-                    }
-                    else
-                    {
-	                    items = plugin.WaitingItems;
-                    }
+						items = plugin.GameItems;
+					}
+					else
+					{
+						items = plugin.WaitingItems;
+					}
 
-	                Timing.Run(TimingSetItems(0, player, items));
-                    break;
+					Timing.Run(TimingSetItems(0, player, items));
+					break;
 
-                case Role.SCP_049:
-                    player.PersonalBroadcast(10, "You are <color=#f00>SCP-049</color>.\nPrevent <color=#FFFF7C>scientists</color> from escaping\nand hide from <color=#0096FF>Facility Control</color>.", false);
+				case Role.SCP_049:
+					player.PersonalBroadcast(10, "You are <color=#f00>SCP-049</color>.\nPrevent <color=#FFFF7C>scientists</color> from escaping\nand hide from <color=#0096FF>Facility Control</color>.", false);
 
 					if (!slendies.ContainsKey(player.PlayerId))
 					{
@@ -689,12 +688,12 @@ namespace Blackout
 					}
 
 					player.Teleport(slendiesFree
-                        ? PluginManager.Manager.Server.Map.GetRandomSpawnPoint(plugin.SlendySpawnPoints[Random.Range(0, plugin.SlendySpawnPoints.Length)])
-                        : PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
-                    break;
+						? PluginManager.Manager.Server.Map.GetRandomSpawnPoint(plugin.SlendySpawnPoints[Random.Range(0, plugin.SlendySpawnPoints.Length)])
+						: PluginManager.Manager.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
+					break;
 
-                case Role.SCP_079:
-                    player.PersonalBroadcast(10, "You are <color=#0096FF>Facility Control</color>.\nWork with <color=#FFFF7C>scientists</color> to help them\nescape and kill <color=#f00>SCP-049</color>.", false);
+				case Role.SCP_079:
+					player.PersonalBroadcast(10, "You are <color=#0096FF>Facility Control</color>.\nWork with <color=#FFFF7C>scientists</color> to help them\nescape and kill <color=#f00>SCP-049</color>.", false);
 
 					if (!fcs.ContainsKey(player.PlayerId))
 					{
@@ -705,194 +704,196 @@ namespace Blackout
 					}
 
 					player.Scp079Data.Level = 1;
-	                player.Scp079Data.APPerSecond = 4f;
-	                player.Scp079Data.MaxAP = 80f;
-	                player.Scp079Data.ExpToLevelUp = 999;
+					player.Scp079Data.APPerSecond = 4f;
+					player.Scp079Data.MaxAP = 80f;
+					player.Scp079Data.ExpToLevelUp = 999;
 					break;
-            }
-        }
+			}
+		}
 
-        /// <summary>
-        /// Overwrites the players inventory with an array of items.
-        /// </summary>
-        /// <param name="player">Player whose inventory should be set.</param>
-        /// <param name="items">Items the players should have.</param>
-        public void SetItems(Player player, IEnumerable<int> items)
-        {
+		/// <summary>
+		/// Overwrites the players inventory with an array of items.
+		/// </summary>
+		/// <param name="player">Player whose inventory should be set.</param>
+		/// <param name="items">Items the players should have.</param>
+		public void SetItems(Player player, IEnumerable<int> items)
+		{
 			foreach (Smod2.API.Item item in player.GetInventory())
 			{
 				item.Remove();
 			}
 
-	        GameObject playerObj = (GameObject)player.GetGameObject();
-	        Inventory inv = playerObj.GetComponent<Inventory>();
-	        WeaponManager manager = playerObj.GetComponent<WeaponManager>();
+			GameObject playerObj = (GameObject)player.GetGameObject();
+			Inventory inv = playerObj.GetComponent<Inventory>();
+			WeaponManager manager = playerObj.GetComponent<WeaponManager>();
 
-	        Console console = Object.FindObjectOfType<Console>();
-	        int vanillaItems = Enum.GetValues(typeof(ItemType)).Length;
+			Console console = Object.FindObjectOfType<Console>();
+			int vanillaItems = Enum.GetValues(typeof(ItemType)).Length;
 			foreach (int item in items)
-	        {
-		        int i = WeaponManagerIndex(manager, item);
+			{
+				int i = WeaponManagerIndex(manager, item);
 
-		        if (item <= vanillaItems)
-		        {
-			        int flashlight;
+				if (item <= vanillaItems)
+				{
+					int flashlight;
 
-			        switch (item)
-			        {
-				        case (int)ItemType.E11_STANDARD_RIFLE:
-					        flashlight = 4;
-					        break;
+					switch (item)
+					{
+						case (int)ItemType.E11_STANDARD_RIFLE:
+							flashlight = 4;
+							break;
 
-				        case (int)ItemType.P90:
-				        case (int)ItemType.USP:
-				        case (int)ItemType.COM15:
-					        flashlight = 1;
-					        break;
+						case (int)ItemType.P90:
+						case (int)ItemType.USP:
+						case (int)ItemType.COM15:
+							flashlight = 1;
+							break;
 
-				        case (int)ItemType.RADIO:
-					        player.RadioStatus = RadioStatus.SHORT_RANGE;
-					        goto default;
+						case (int)ItemType.RADIO:
+							player.RadioStatus = RadioStatus.SHORT_RANGE;
+							goto default;
 
-				        default:
-					        player.GiveItem((ItemType)item);
-					        continue;
-			        }
+						default:
+							player.GiveItem((ItemType)item);
+							continue;
+					}
 
-			        inv.AddNewItem(item, manager.weapons[i].maxAmmo, manager.modPreferences[i, 0], manager.modPreferences[i, 1], flashlight);
-		        }
-		        else
-		        {
-			        // Support for ItemManager items
-			        console.TypeCommand($"imgive {player.PlayerId} {item}");
-		        }
-	        }
-        }
+					inv.AddNewItem(item, manager.weapons[i].maxAmmo, manager.modPreferences[i, 0], manager.modPreferences[i, 1], flashlight);
+				}
+				else
+				{
+					// Support for ItemManager items
+					console.TypeCommand($"imgive {player.PlayerId} {item}");
+				}
+			}
+		}
 
-        /// <summary>
-        /// Sets role, handles items, and handles round logic of an escaped scientist.
-        /// </summary>
-        /// <param name="player">Scientist that escaped</param>
-        public void EscapeScientist(Player player)
-        {
-            // Drop items before converting
-            foreach (Smod2.API.Item item in player.GetInventory())
-                item.Drop();
+		/// <summary>
+		/// Sets role, handles items, and handles round logic of an escaped scientist.
+		/// </summary>
+		/// <param name="player">Scientist that escaped</param>
+		public void EscapeScientist(Player player)
+		{
+			// Drop items before converting
+			foreach (Smod2.API.Item item in player.GetInventory())
+				item.Drop();
 
-            // Convert only class, no inventory or spawn point
-            player.ChangeRole(Role.NTF_SCIENTIST, false, false, false);
+			// Convert only class, no inventory or spawn point
+			player.ChangeRole(Role.NTF_SCIENTIST, false, false, false);
 
-            SetItems(player, plugin.EscapeItems);
+			SetItems(player, plugin.EscapeItems);
 
-            plugin.Server.Round.Stats.ScientistsEscaped++;
-        }
+			plugin.Server.Round.Stats.ScientistsEscaped++;
+		}
 
-        public string SendFcMessage(Player sender, string message)
-        {
-	        switch (sender.TeamRole.Role)
-	        {
-		        case Role.SCIENTIST:
-		        {
-			        foreach (Player fc in fcs.Values)
-			        {
-				        fc.PersonalBroadcast(7, $"<color=#FFFF7C>{sender.Name}</color>: {message}", false);
-			        }
+		public string SendFcMessage(Player sender, string message)
+		{
+			switch (sender.TeamRole.Role)
+			{
+				case Role.SCIENTIST:
+				{
+					foreach (Player fc in fcs.Values)
+					{
+						fc.PersonalBroadcast(7, $"<color=#FFFF7C>{sender.Name}</color>: {message}", false);
+					}
 
-			        return $"<color=#0f0>Sent message to {fcs.Count} Facility Control member{(fcs.Count == 1 ? "s" : "")}.</color>";
-		        }
+					return $"<color=#0f0>Sent message to {fcs.Count} Facility Control member{(fcs.Count == 1 ? "s" : "")}.</color>";
+				}
 
-		        case Role.SCP_079:
-		        {
-			        foreach (Player scientist in scientists.Values)
-			        {
+				case Role.SCP_079:
+				{
+					foreach (Player scientist in scientists.Values)
+					{
 						scientist.PersonalBroadcast(7, $"<color=#0096FF>{sender.Name}</color>: {message}", false);
-			        }
+					}
 
-			        return $"<color=#0f0>Sent message to {scientists.Count} scientist{(scientists.Count == 1 ? "s" : "")}.</color>";
+					return $"<color=#0f0>Sent message to {scientists.Count} scientist{(scientists.Count == 1 ? "s" : "")}.</color>";
 				}
 
 				default:
 					return "You do not have access to the Facility Control Messaging System.";
-	        }
-        }
+			}
+		}
 
-        /// <summary>
-        /// Gets the index of an item in WeaponManager from a weapon ItemType.
-        /// </summary>
-        /// <param name="manager">A player's weapon manager.</param>
-        /// <param name="item">The ItemType of the weapon.</param>
-        public static int WeaponManagerIndex(WeaponManager manager, int item)
-        {
-            // Get weapon index in WeaponManager
-            int weapon = -1;
-            for (int i = 0; i < manager.weapons.Length; i++)
-            {
-                if (manager.weapons[i].inventoryID == item)
-                {
-                    weapon = i;
-                }
-            }
+		/// <summary>
+		/// Gets the index of an item in WeaponManager from a weapon ItemType.
+		/// </summary>
+		/// <param name="manager">A player's weapon manager.</param>
+		/// <param name="item">The ItemType of the weapon.</param>
+		public static int WeaponManagerIndex(WeaponManager manager, int item)
+		{
+			// Get weapon index in WeaponManager
+			int weapon = -1;
+			for (int i = 0; i < manager.weapons.Length; i++)
+			{
+				if (manager.weapons[i].inventoryID == item)
+				{
+					weapon = i;
+				}
+			}
 
-            return weapon;
-        }
+			return weapon;
+		}
 
-	    public void OnGeneratorInsertTablet(PlayerGeneratorInsertTabletEvent ev)
-	    {
-		    if (plugin.Active)
-		    {
-			    ev.Generator.TimeLeft = plugin.GeneratorTime;
+		public void OnGeneratorInsertTablet(PlayerGeneratorInsertTabletEvent ev)
+		{
+			if (plugin.Active)
+			{
+				ev.Generator.TimeLeft = plugin.GeneratorTime;
 				
 				foreach (Player player in scientists.Values.Concat(slendies.Values))
-			    {
-				    player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} is now powering up.</color></b>", false);
-			    }
+				{
+					player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} is now powering up.</color></b>", false);
+				}
 			}
 		}
 
-	    public void OnGeneratorEjectTablet(PlayerGeneratorEjectTabletEvent ev)
-	    {
-		    if (plugin.Active && !ev.Generator.Engaged)
-		    {
-			    foreach (Player player in scientists.Values.Concat(slendies.Values))
-			    {
-				    player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} was shut down.</color></b>", false);
-			    }
+		public void OnGeneratorEjectTablet(PlayerGeneratorEjectTabletEvent ev)
+		{
+			if (plugin.Active && !ev.Generator.Engaged)
+			{
+				foreach (Player player in scientists.Values.Concat(slendies.Values))
+				{
+					player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} was shut down.</color></b>", false);
+				}
 			}
 		}
 
-	    public void OnGeneratorFinish(GeneratorFinishEvent ev)
-	    {
-		    if (plugin.Active)
-		    {
-			    foreach (Player player in scientists.Values.Concat(slendies.Values))
-			    {
-				    player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} has successfully powered up.</color></b>", false);
-			    }
+		public void OnGeneratorFinish(GeneratorFinishEvent ev)
+		{
+			if (plugin.Active)
+			{
+				generatorPowerups++;
+
+				foreach (Player player in scientists.Values.Concat(slendies.Values))
+				{
+					player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} has successfully powered up.</color></b>", false);
+				}
 			}
 		}
 
-	    public void On079TeslaGate(Player079TeslaGateEvent ev)
-	    {
-		    if (plugin.Active)
-		    {
-			    ev.Allow = false;
-		    }
-	    }
+		public void On079TeslaGate(Player079TeslaGateEvent ev)
+		{
+			if (plugin.Active)
+			{
+				ev.Allow = false;
+			}
+		}
 
-	    public void On079Elevator(Player079ElevatorEvent ev)
-	    {
+		public void On079Elevator(Player079ElevatorEvent ev)
+		{
 			if (plugin.Active && ev.Elevator.ElevatorType != ElevatorType.SCP049Chamber && ev.Elevator.ElevatorType != ElevatorType.WarheadRoom)
 			{
 				ev.Allow = false;
 			}
 		}
 
-	    public void On079AddExp(Player079AddExpEvent ev)
-	    {
-		    if (plugin.Active)
-		    {
-			    ev.ExpToAdd = 0;
+		public void On079AddExp(Player079AddExpEvent ev)
+		{
+			if (plugin.Active)
+			{
+				ev.ExpToAdd = 0;
 			}
-	    }
-    }
+		}
+	}
 }
