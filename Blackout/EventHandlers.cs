@@ -22,7 +22,7 @@ namespace Blackout
 		IEventHandlerGeneratorInsertTablet, IEventHandlerGeneratorEjectTablet, IEventHandlerGeneratorFinish,
 		IEventHandler079TeslaGate, IEventHandler079Elevator, IEventHandler079AddExp
 	{
-		private const string BroadcastExplanation = "<b><color=#f22>Раунд:Blackout.\n Для просмотра информации нажмите [ Ё ] или [~].</color></b>";;
+		private const string BroadcastExplanation = "<b><color=#f22>Раунд:Blackout.\n Для просмотра информации нажмите [ Ё ] или [~].</color></b>";
 		private const string ConsoleExplaination =
 		  "\nЭто Blackout!\n" +
 		  "В Blackout вы или учёный, чумной доктор (049), или Диспетчер (SCP-079). Свет отключён и выходы заблокированы." +
