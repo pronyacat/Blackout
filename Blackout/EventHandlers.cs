@@ -14,22 +14,21 @@ using Random = UnityEngine.Random;
 
 namespace Blackout
 {
-	public class EventHandlers : IEventHandlerWaitingForPlayers, IEventHandlerRoundStart, 
-		IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt, 
+	public class EventHandlers : IEventHandlerWaitingForPlayers, IEventHandlerRoundStart,
+		IEventHandlerDoorAccess, IEventHandlerTeamRespawn, IEventHandlerPlayerHurt,
 		IEventHandlerSummonVehicle, IEventHandlerRoundRestart, IEventHandlerCheckRoundEnd,
 		IEventHandlerPlayerTriggerTesla, IEventHandlerElevatorUse, IEventHandlerWarheadStartCountdown,
 		IEventHandlerSetRole, IEventHandlerRecallZombie, IEventHandlerInfected, IEventHandlerCallCommand,
 		IEventHandlerGeneratorInsertTablet, IEventHandlerGeneratorEjectTablet, IEventHandlerGeneratorFinish,
 		IEventHandler079TeslaGate, IEventHandler079Elevator, IEventHandler079AddExp
 	{
-		private const string BroadcastExplanation = "<b><color=#f22>This is Blackout, a custom gamemode. If you have never played it, press [ ` ] or [~] for more info.</color></b>";
+		private const string BroadcastExplanation = "<b><color=#f22>Раунд:Blackout.\n Для просмотра информации нажмите [ Ё ] или [~].</color></b>";;
 		private const string ConsoleExplaination =
-			"\nWelcome to Blackout!\n" +
-			"In Blackout, you're either a scientist, an 049, or a Facility Control member. All the lights will turn off and exits have been locked. " +
-			"The only way to get out is by activating all the 079 generators, then going to the 049 armory, entrance checkpoint, or the Heavy Containment Zone armory " +
-			"(that 3 way intersection with the chasm beneath it). " +
-			"O5 keycards will replace all existing keycards. When you escape, you will be given weapons to kill all 049s. " +
-			"Eliminate all of them before the nuke detonates for an MTF win.";
+		  "\nЭто Blackout!\n" +
+		  "В Blackout вы или учёный, чумной доктор (049), или Диспетчер (SCP-079). Свет отключён и выходы заблокированы." +
+		  "Единственный путь сбежать - активировать все генераторы, после чего следуйте к оружейной в камере содержания 049, оружейной на тройной развилке, или же КПП." +
+		  "Все карточки заменены на О5 карточки. Когда вы сбежите, вы получите снаряжение, чтобы убить всех чумных докторов (049). " +
+		  "У вас есть 10 минут до того, как взорвётся боеголовка.";
 
 		private const float Cassie049BreachDelay = 8.25f;
 
@@ -44,7 +43,7 @@ namespace Blackout
 		private readonly Dictionary<int, Player> slendies;
 		private readonly Dictionary<int, Player> fcs;
 		private Vector3[] uspRespawns;
-		
+
 		private List<Smod2.API.TeslaGate> teslas;
 
 		public EventHandlers(BlackoutPlugin plugin)
@@ -100,7 +99,7 @@ namespace Blackout
 				//Teleport to 106 as a prison
 				slendy.Teleport(plugin.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
 
-				slendy.PersonalBroadcast(5, $"<color=#ccc>You will be free in</color> {plugin.SlendyReleaseDelay} <color=#ccc>seconds.</color>", false);
+				slendy.PersonalBroadcast(5, $"<color=#ccc>Вас освободят через</color> {plugin.SlendyReleaseDelay} <color=#ccc>секунд.</color>", false);
 			}
 
 			foreach (Player player in scientists.Values)
@@ -124,7 +123,7 @@ namespace Blackout
 		private IEnumerable<float> TimingReleaseSlendies(float delay)
 		{
 			yield return delay;
-			
+
 			plugin.Server.Map.AnnounceCustomMessage("CAUTION . SCP 0 4 9 CONTAINMENT BREACH IN PROGRESS");
 			yield return Cassie049BreachDelay;
 
@@ -216,7 +215,7 @@ namespace Blackout
 
 			Timing.Run(TimingRoundStart());
 		}
-		
+
 		public void OnCheckRoundEnd(CheckRoundEndEvent ev)
 		{
 			if (plugin.Active)
@@ -261,7 +260,7 @@ namespace Blackout
 				}
 			}
 		}
-		
+
 		public void OnRoundRestart(RoundRestartEvent ev)
 		{
 			plugin.Active = false;
@@ -270,7 +269,7 @@ namespace Blackout
 			slendies.Clear();
 			fcs.Clear();
 		}
-		
+
 		public void OnDoorAccess(PlayerDoorAccessEvent ev)
 		{
 			if (plugin.Active)
@@ -297,7 +296,7 @@ namespace Blackout
 				}
 			}
 		}
-		
+
 		public void OnElevatorUse(PlayerElevatorUseEvent ev)
 		{
 			if (plugin.Active && (ev.Elevator.ElevatorType == ElevatorType.LiftA || ev.Elevator.ElevatorType == ElevatorType.LiftB))
@@ -305,7 +304,7 @@ namespace Blackout
 				ev.AllowUse = false;
 			}
 		}
-		
+
 		public void OnPlayerTriggerTesla(PlayerTriggerTeslaEvent ev)
 		{
 			if (plugin.Active && plugin.TeslaFlicker)
@@ -313,7 +312,7 @@ namespace Blackout
 				ev.Triggerable = false;
 			}
 		}
-		
+
 		public void OnPlayerHurt(PlayerHurtEvent ev)
 		{
 			if (plugin.Active && ev.DamageType == DamageType.NUKE && ev.Player.TeamRole.Team == Smod2.API.Team.SCP)
@@ -321,7 +320,7 @@ namespace Blackout
 				ev.Damage = 0;
 			}
 		}
-		
+
 		public void OnSetRole(PlayerSetRoleEvent ev)
 		{
 			if (plugin.Active)
@@ -334,7 +333,7 @@ namespace Blackout
 						int[] items;
 						if (roundStarted)
 						{
-							ev.Player.PersonalBroadcast(10, "You are a <color=#FFFF7C>scientist</color>.\nDodge <color=#f00>SCP-049</color> and escape by\nworking with <color=#0096FF>Facility Control</color>.", false);
+							ev.Player.PersonalBroadcast(10, "Вы <color=#FFFF7C>Ученый</color>.\n Избегайте <color=#f00>SCP-049</color>. Запустите генераторы и сбегите.\nКооперируйтесь с <color=#0096FF>Диспечетром</color>.", false);
 
 							if (!scientists.ContainsKey(ev.Player.PlayerId))
 							{
@@ -355,7 +354,7 @@ namespace Blackout
 						break;
 
 					case Role.SCP_049:
-						ev.Player.PersonalBroadcast(10, "You are <color=#f00>SCP-049</color>.\nPrevent <color=#FFFF7C>scientists</color> from escaping\nand hide from <color=#0096FF>Facility Control</color>.", false);
+						ev.Player.PersonalBroadcast(10, "Вы <color=#f00>SCP-049</color>.\nНе дайте <color=#FFFF7C>Ученым</color> сбежать.\nИзбегайте <color=#0096FF>Диспетчера</color>.", false);
 
 						if (!slendies.ContainsKey(ev.Player.PlayerId))
 						{
@@ -371,7 +370,7 @@ namespace Blackout
 						break;
 
 					case Role.SCP_079:
-						ev.Player.PersonalBroadcast(10, "You are <color=#0096FF>Facility Control</color>.\nWork with <color=#FFFF7C>scientists</color> to help them\nescape and kill <color=#f00>SCP-049</color>.", false);
+						ev.Player.PersonalBroadcast(10, "Вы <color=#0096FF>Диспетчер</color>.\nПомогите <color=#FFFF7C>Ученым</color> запустить генераторы,\n а также сбежать и убить <color=#f00>SCP-049</color>.", false);
 
 						if (!fcs.ContainsKey(ev.Player.PlayerId))
 						{
@@ -395,7 +394,7 @@ namespace Blackout
 				}
 			}
 		}
-		
+
 		public void OnTeamRespawn(TeamRespawnEvent ev)
 		{
 			if (plugin.Active)
@@ -404,7 +403,7 @@ namespace Blackout
 				ev.PlayerList = new List<Player>();
 			}
 		}
-		
+
 		public void OnSummonVehicle(SummonVehicleEvent ev)
 		{
 			if (plugin.Active)
@@ -412,7 +411,7 @@ namespace Blackout
 				ev.AllowSummon = false;
 			}
 		}
-		
+
 		public void OnStartCountdown(WarheadStartEvent ev)
 		{
 			if (plugin.Active)
@@ -420,7 +419,7 @@ namespace Blackout
 				ev.OpenDoorsAfter = false;
 			}
 		}
-		
+
 		public void OnRecallZombie(PlayerRecallZombieEvent ev)
 		{
 			if (plugin.Active)
@@ -428,7 +427,7 @@ namespace Blackout
 				ev.AllowRecall = false;
 			}
 		}
-		
+
 		public void OnPlayerInfected(PlayerInfectedEvent ev)
 		{
 			if (plugin.Active)
@@ -436,7 +435,7 @@ namespace Blackout
 				ev.InfectTime = 0;
 			}
 		}
-		
+
 		public void OnCallCommand(PlayerCallCommandEvent ev)
 		{
 			if (ev.Command.StartsWith("fc") && (ev.Command.Length == 2 || ev.Command[2] == ' '))
@@ -638,7 +637,7 @@ namespace Blackout
 				//Teleport to 106 as a prison
 				slendy.Teleport(plugin.Server.Map.GetRandomSpawnPoint(Role.SCP_106));
 
-				slendy.PersonalBroadcast(5, $"<color=#ccc>You will be free in</color> {plugin.SlendyReleaseDelay} <color=#ccc>seconds.</color>", false);
+				slendy.PersonalBroadcast(5, $"<color=#ccc>Вас освободят через</color> {plugin.SlendyReleaseDelay} <color=#ccc>секунд.</color>", false);
 			}
 		}
 
@@ -656,7 +655,7 @@ namespace Blackout
 					int[] items;
 					if (roundStarted)
 					{
-						player.PersonalBroadcast(10, "You are a <color=#FFFF7C>scientist</color>.\nDodge <color=#f00>SCP-049</color> and escape by\nworking with <color=#0096FF>Facility Control</color>.", false);
+						player.PersonalBroadcast(10, "Вы <color=#FFFF7C>Ученый</color>.\n Избегайте <color=#f00>SCP-049</color>. Запустите генераторы и сбегите.\nКооперируйтесь с <color=#0096FF>Диспечетром</color>.", false);
 
 						if (!scientists.ContainsKey(player.PlayerId))
 						{
@@ -677,7 +676,7 @@ namespace Blackout
 					break;
 
 				case Role.SCP_049:
-					player.PersonalBroadcast(10, "You are <color=#f00>SCP-049</color>.\nPrevent <color=#FFFF7C>scientists</color> from escaping\nand hide from <color=#0096FF>Facility Control</color>.", false);
+					player.PersonalBroadcast(10, "Вы <color=#f00>SCP-049</color>.\nНе дайте <color=#FFFF7C>Ученым</color> сбежать.\nИзбегайте <color=#0096FF>Диспетчера</color>.", false);
 
 					if (!slendies.ContainsKey(player.PlayerId))
 					{
@@ -693,7 +692,7 @@ namespace Blackout
 					break;
 
 				case Role.SCP_079:
-					player.PersonalBroadcast(10, "You are <color=#0096FF>Facility Control</color>.\nWork with <color=#FFFF7C>scientists</color> to help them\nescape and kill <color=#f00>SCP-049</color>.", false);
+					player.PersonalBroadcast(10, "Вы <color=#0096FF>Диспетчер</color>.\nПомогите <color=#FFFF7C>Ученым</color> запустить генераторы,\n а также сбежать и убить <color=#f00>SCP-049</color>.", false);
 
 					if (!fcs.ContainsKey(player.PlayerId))
 					{
@@ -840,10 +839,10 @@ namespace Blackout
 			if (plugin.Active)
 			{
 				ev.Generator.TimeLeft = plugin.GeneratorTime;
-				
+
 				foreach (Player player in scientists.Values.Concat(slendies.Values))
 				{
-					player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} is now powering up.</color></b>", false);
+					player.PersonalBroadcast(5, $"<b><color=#ccc>Генератор запускается в {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')}.</color></b>", false);
 				}
 			}
 		}
@@ -854,7 +853,7 @@ namespace Blackout
 			{
 				foreach (Player player in scientists.Values.Concat(slendies.Values))
 				{
-					player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} was shut down.</color></b>", false);
+					player.PersonalBroadcast(5, $"<b><color=#ccc>Генератор был отключен в {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')}.</color></b>", false);
 				}
 			}
 		}
@@ -867,7 +866,7 @@ namespace Blackout
 
 				foreach (Player player in scientists.Values.Concat(slendies.Values))
 				{
-					player.PersonalBroadcast(5, $"<b><color=#ccc>Generator {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')} has successfully powered up.</color></b>", false);
+					player.PersonalBroadcast(5, $"<b><color=#ccc>Генератор был запущен в {ev.Generator.Room.RoomType.ToString().Replace('_', ' ')}.</color></b>", false);
 				}
 			}
 		}
